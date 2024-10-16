@@ -46,14 +46,18 @@ function HeroSection() {
           <h2 className="text-xl font-semibold mb-2">-Author</h2>
           <h3 className="text-2xl font-bold mb-4">Wannasingh K.</h3>
           <p className="text-gray-500 mb-4">
-            I am a pet enthusiast and freelance writer who specializes in animal
-            behavior and care. With a deep love for cats, I enjoy sharing
-            insights on feline companionship and wellness.
+            I&apos;m a passionate animal lover who enjoys taking care of pets
+            and shopping for anything related to them, from toys to food and
+            accessories. Exploring new places is another thing I love—whether
+            it&apos;s camping in the mountains, relaxing on the beach, or
+            discovering hidden spots in nature.
+            <br />
+            <br />
+            Through my blog, I&apos;ll be sharing my adventures, experiences
+            with animals, and all the fun things I find along the way. Join me
+            on this journey and let&apos;s explore the world together!
           </p>
-          <p className="text-gray-500">
-            When I&apos;m not writing, I spend time volunteering at my local
-            animal shelter, helping cats find loving homes.
-          </p>
+          <p className="text-gray-500">Follow me on Instagram: @oncenasingh</p>
         </div>
       </div>
     </main>
