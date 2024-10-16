@@ -36,8 +36,7 @@ function HeroSection() {
           </p>
         </div>
         <img
-          src="/src/assets/profile.jpeg"
-          alt="Wannasing's Images"
+          src="src/assets/profile.jpeg"alt="Wannasing's Images"
           className="h-[530px] object-cover rounded-lg shadow-lg lg:w-1/3 mx-4 mb-8 lg:mb-0"
         />
         <div className="lg:w-1/3 lg:pl-8">
