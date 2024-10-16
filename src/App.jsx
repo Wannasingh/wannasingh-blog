@@ -35,12 +35,10 @@ function HeroSection() {
             Inspiration and Information.
           </p>
         </div>
-        <video
-          src="src/media/IMG_2687.mov"
+        <img
+          src="https://res.cloudinary.com/dcbpjtd1r/image/upload/v1728449784/my-blog-post/xgfy0xnvyemkklcqodkg.jpg"
           alt="Wannasing's Images"
           className="h-[530px] object-cover rounded-lg shadow-lg lg:w-1/3 mx-4 mb-8 lg:mb-0"
-          autoPlay
-          muted
         />
         <div className="lg:w-1/3 lg:pl-8">
           <h2 className="text-xl font-semibold mb-2">-Author</h2>
