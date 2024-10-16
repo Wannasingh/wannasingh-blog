@@ -36,7 +36,7 @@ function HeroSection() {
           </p>
         </div>
         <img
-          src="https://res.cloudinary.com/dcbpjtd1r/image/upload/v1728449784/my-blog-post/xgfy0xnvyemkklcqodkg.jpg"
+          src="/src/assets/profile.jpeg"
           alt="Wannasing's Images"
           className="h-[530px] object-cover rounded-lg shadow-lg lg:w-1/3 mx-4 mb-8 lg:mb-0"
         />
