@@ -22,6 +22,10 @@ export default function Articles() {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [suggestions, setSuggestions] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     setIsLoading(true); // Set isLoading to true when starting to fetch
@@ -43,6 +47,27 @@ export default function Articles() {
     fetchPosts();
   }, [page, category]);
 
+  useEffect(() => {
+    if (searchKeyword.length > 0) {
+      setIsLoading(true);
+      const fetchSuggestions = async () => {
+        try {
+          const response = await axios.get(
+            `https://blog-post-project-api.vercel.app/posts?keyword=${searchKeyword}`
+          );
+          setSuggestions(response.data.posts); // Set search suggestions
+          setIsLoading(false);
+        } catch (error) {
+          console.log(error);
+          setIsLoading(false);
+        }
+      };
+      fetchSuggestions();
+    } else {
+      setSuggestions([]); // Clear suggestions if keyword is empty
+    }
+  }, [searchKeyword]);
+
   const handleLoadMore = () => {
     setPage((prevPage) => prevPage + 1);
   };
@@ -56,8 +81,31 @@ export default function Articles() {
             <Input
               type="text"
               placeholder="Search"
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              onFocus={() => setShowDropdown(true)}
+              onBlur={() => {
+                setTimeout(() => {
+                  setShowDropdown(false);
+                }, 200);
+              }}
               className="py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
             />
+            {!isLoading &&
+              showDropdown &&
+              searchKeyword &&
+              suggestions.length > 0 && (
+                <div className="absolute z-10 w-full mt-2 bg-background rounded-sm shadow-lg p-1">
+                  {suggestions.map((suggestion, index) => (
+                    <button
+                      key={index}
+                      className="text-start px-4 py-2 block w-full text-sm text-foreground hover:bg-[#EFEEEB] hover:text-muted-foreground hover:rounded-sm cursor-pointer"
+                      onClick={() => navigate(`/post/${suggestion.id}`)}
+                    >
+                      {suggestion.title}
+                    </button>
+                  ))}
+                </div>
+              )}
           </div>
         </div>
         <div className="md:hidden w-full">
