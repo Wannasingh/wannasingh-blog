@@ -1,7 +1,8 @@
 /* eslint-disable react/prop-types */
+import axios from "axios";
+import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { blogPosts } from "../data/blogPosts";
 import authorImage from "../assets/author-image.jpeg";
 import {
   Select,
@@ -51,6 +52,36 @@ function BlogCard({ image, category, title, description, author, date }) {
 }
 
 export default function Articles() {
+  const categories = ["Highlight", "Cat", "Inspiration", "General"];
+  const [category, setCategory] = useState("Highlight");
+  const [posts, setPosts] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setIsLoading(true); // Set isLoading to true when starting to fetch
+    const fetchPosts = async () => {
+      try {
+        const response = await axios.get(
+          `https://blog-post-project-api.vercel.app/posts?page=${page}&limit=6&category=${category}`
+        );
+        setPosts((prevPosts) => [...prevPosts, ...response.data.posts]);
+        setIsLoading(false);
+        if (response.data.currentPage >= response.data.totalPages) {
+          setHasMore(false);
+        }
+      } catch (error) {
+        console.log(error);
+        setIsLoading(false);
+      }
+    };
+    fetchPosts();
+  }, [page, category]);
+
+  const handleLoadMore = () => {
+    setPage((prevPage) => prevPage + 1);
+  };
   return (
     <div className="w-full max-w-7xl mx-auto md:px-6 lg:px-8 mb-40">
       <h2 className="text-xl font-bold mb-4 px-4">Latest articles</h2>
@@ -66,95 +97,77 @@ export default function Articles() {
           </div>
         </div>
         <div className="md:hidden w-full">
-          <Select value="highlight">
+          <Select
+            value={category}
+            onValueChange={(value) => {
+              setCategory(value);
+              setPosts([]);
+              setPage(1);
+              setHasMore(true);
+            }}
+          >
             <SelectTrigger className="w-full py-3 rounded-sm text-muted-foreground focus:ring-0 focus:ring-offset-0 focus:border-muted-foreground">
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="highlight">Highlight</SelectItem>
-              <SelectItem value="cat">Cat</SelectItem>
-              <SelectItem value="inspiration">Inspiration</SelectItem>
-              <SelectItem value="general">General</SelectItem>
+              {categories.map((cat) => {
+                return (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
         <div className="hidden md:flex space-x-2">
-          <button
-            className="px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium bg-[#DAD6D1]
-            "
-          >
-            Highlight
-          </button>
-          <button
-            className="px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium bg-[muted]
-            "
-          >
-            Cat
-          </button>
-          <button
-            className="px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium bg-[muted]
-            "
-          >
-            Inspiration
-          </button>
-          <button
-            className="px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium bg-[muted]
-            "
-          >
-            General
-          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => {
+                setCategory(cat);
+                setPosts([]);
+                setPage(1);
+                setHasMore(true);
+              }}
+              className={`px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium ${
+                category === cat ? "bg-[#DAD6D1]" : "hover:bg-muted"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
       </div>
       <article className="grid grid-cols-1 md:grid-cols-2 gap-8 px-4 md:px-0">
-        <BlogCard
-          image={blogPosts[0].image}
-          category={blogPosts[0].category}
-          title={blogPosts[0].title}
-          description={blogPosts[0].description}
-          author={blogPosts[0].author}
-          date={blogPosts[0].date}
-        />
-        <BlogCard
-          image={blogPosts[1].image}
-          category={blogPosts[1].category}
-          title={blogPosts[1].title}
-          description={blogPosts[1].description}
-          author={blogPosts[1].author}
-          date={blogPosts[1].date}
-        />
-        <BlogCard
-          image={blogPosts[2].image}
-          category={blogPosts[2].category}
-          title={blogPosts[2].title}
-          description={blogPosts[2].description}
-          author={blogPosts[2].author}
-          date={blogPosts[2].date}
-        />
-        <BlogCard
-          image={blogPosts[3].image}
-          category={blogPosts[3].category}
-          title={blogPosts[3].title}
-          description={blogPosts[3].description}
-          author={blogPosts[3].author}
-          date={blogPosts[3].date}
-        />
-        <BlogCard
-          image={blogPosts[4].image}
-          category={blogPosts[4].category}
-          title={blogPosts[4].title}
-          description={blogPosts[4].description}
-          author={blogPosts[4].author}
-          date={blogPosts[4].date}
-        />
-        <BlogCard
-          image={blogPosts[5].image}
-          category={blogPosts[5].category}
-          title={blogPosts[5].title}
-          description={blogPosts[5].description}
-          author={blogPosts[5].author}
-          date={blogPosts[5].date}
-        />
+        {posts.map((blog, index) => {
+          return (
+            <BlogCard
+              key={index}
+              image={blog.image}
+              category={blog.category}
+              title={blog.title}
+              description={blog.description}
+              author={blog.author}
+              date={new Date(blog.date).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
+            />
+          );
+        })}
       </article>
+      {hasMore && (
+        <div className="text-center mt-8">
+          <button
+            onClick={handleLoadMore}
+            className="hover:text-muted-foreground font-medium underline"
+          >
+            {isLoading ? "Loading..." : "View more"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
