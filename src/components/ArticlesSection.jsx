@@ -55,18 +55,32 @@ export default function Articles() {
   const categories = ["Highlight", "Cat", "Inspiration", "General"];
   const [category, setCategory] = useState("Highlight");
   const [posts, setPosts] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
+    setIsLoading(true); // Set isLoading to true when starting to fetch
+    const fetchPosts = async () => {
+      try {
+        const response = await axios.get(
+          `https://blog-post-project-api.vercel.app/posts?page=${page}&limit=6&category=${category}`
+        );
+        setPosts((prevPosts) => [...prevPosts, ...response.data.posts]);
+        setIsLoading(false);
+        if (response.data.currentPage >= response.data.totalPages) {
+          setHasMore(false);
+        }
+      } catch (error) {
+        console.log(error);
+        setIsLoading(false);
+      }
+    };
     fetchPosts();
-  }, []);
-  const fetchPosts = async () => {
-    try {
-      const response = await axios.get(
-        `https://blog-post-project-api.vercel.app/posts`
-      );
-      setPosts(response.data.posts);
-    } catch (error) {
-      console.log(error);
-    }
+  }, [page, category]);
+
+  const handleLoadMore = () => {
+    setPage((prevPage) => prevPage + 1);
   };
   return (
     <div className="w-full max-w-7xl mx-auto md:px-6 lg:px-8 mb-40">
@@ -85,7 +99,12 @@ export default function Articles() {
         <div className="md:hidden w-full">
           <Select
             value={category}
-            onValueChange={(value) => setCategory(value)}
+            onValueChange={(value) => {
+              setCategory(value);
+              setPosts([]);
+              setPage(1);
+              setHasMore(true);
+            }}
           >
             <SelectTrigger className="w-full py-3 rounded-sm text-muted-foreground focus:ring-0 focus:ring-offset-0 focus:border-muted-foreground">
               <SelectValue placeholder="Select category" />
@@ -105,7 +124,12 @@ export default function Articles() {
           {categories.map((cat) => (
             <button
               key={cat}
-              onClick={() => setCategory(cat)}
+              onClick={() => {
+                setCategory(cat);
+                setPosts([]);
+                setPage(1);
+                setHasMore(true);
+              }}
               className={`px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium ${
                 category === cat ? "bg-[#DAD6D1]" : "hover:bg-muted"
               }`}
@@ -134,6 +158,16 @@ export default function Articles() {
           );
         })}
       </article>
+      {hasMore && (
+        <div className="text-center mt-8">
+          <button
+            onClick={handleLoadMore}
+            className="hover:text-muted-foreground font-medium underline"
+          >
+            {isLoading ? "Loading..." : "View more"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
