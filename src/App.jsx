@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { Toaster } from './components/ui/sonner';
 import HomePage from './pages/HomePage';
 import ViewPostPage from './pages/ViewPostPage';
-import NotFoundPage from './pages/NotFoundPage';
+import NotFoundPage from './pages/NotFoundpage';
 
 function App() {
   return (
