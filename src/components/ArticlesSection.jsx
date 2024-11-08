@@ -1,10 +1,9 @@
 /* eslint-disable react/prop-types */
+import authorImage from "../assets/author-image.jpeg";
+import { useEffect, useState } from "react";
 import axios from "axios";
-import { useState, useEffect } from "react";
 import { Search, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import authorImage from "../assets/author-image.jpeg";
-import { useNavigate } from "react-router-dom";
 import {
   Select,
   SelectContent,
@@ -12,19 +11,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-
+import { useNavigate } from "react-router-dom";
 
 export default function Articles() {
   const categories = ["Highlight", "Cat", "Inspiration", "General"];
   const [category, setCategory] = useState("Highlight");
   const [posts, setPosts] = useState([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1); // Current page state
+  const [hasMore, setHasMore] = useState(true); // To track if there are more posts to load
   const [isLoading, setIsLoading] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -32,19 +31,22 @@ export default function Articles() {
     const fetchPosts = async () => {
       try {
         const response = await axios.get(
-          `https://blog-post-project-api.vercel.app/posts?page=${page}&limit=6&category=${category}`
+          `https://blog-post-project-api.vercel.app/posts?page=${page}&limit=6&${
+            category !== "Highlight" ? `&category=${category}` : ""
+          }`
         );
         setPosts((prevPosts) => [...prevPosts, ...response.data.posts]);
-        setIsLoading(false);
+        setIsLoading(false); // Set isLoading to false after fetching
         if (response.data.currentPage >= response.data.totalPages) {
-          setHasMore(false);
+          setHasMore(false); // No more posts to load
         }
       } catch (error) {
         console.log(error);
-        setIsLoading(false);
+        setIsLoading(false); // Set loading to false in case of error
       }
     };
-    fetchPosts();
+
+    fetchPosts(); // Call fetchPosts within useEffect
   }, [page, category]);
 
   useEffect(() => {
@@ -62,6 +64,7 @@ export default function Articles() {
           setIsLoading(false);
         }
       };
+
       fetchSuggestions();
     } else {
       setSuggestions([]); // Clear suggestions if keyword is empty
@@ -69,8 +72,9 @@ export default function Articles() {
   }, [searchKeyword]);
 
   const handleLoadMore = () => {
-    setPage((prevPage) => prevPage + 1);
+    setPage((prevPage) => prevPage + 1); // Increment page number to load more posts
   };
+
   return (
     <div className="w-full max-w-7xl mx-auto md:px-6 lg:px-8 mb-20">
       <h2 className="text-xl font-bold mb-4 px-4">Latest articles</h2>
@@ -81,6 +85,7 @@ export default function Articles() {
             <Input
               type="text"
               placeholder="Search"
+              className="py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
               onChange={(e) => setSearchKeyword(e.target.value)}
               onFocus={() => setShowDropdown(true)}
               onBlur={() => {
@@ -88,7 +93,6 @@ export default function Articles() {
                   setShowDropdown(false);
                 }, 200);
               }}
-              className="py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
             />
             {!isLoading &&
               showDropdown &&
@@ -113,9 +117,9 @@ export default function Articles() {
             value={category}
             onValueChange={(value) => {
               setCategory(value);
-              setPosts([]);
-              setPage(1);
-              setHasMore(true);
+              setPosts([]); // Clear posts when category changes
+              setPage(1); // Reset page to 1
+              setHasMore(true); // Reset "has more" state
             }}
           >
             <SelectTrigger className="w-full py-3 rounded-sm text-muted-foreground focus:ring-0 focus:ring-offset-0 focus:border-muted-foreground">
@@ -135,12 +139,13 @@ export default function Articles() {
         <div className="hidden md:flex space-x-2">
           {categories.map((cat) => (
             <button
+              disabled={category === cat}
               key={cat}
               onClick={() => {
                 setCategory(cat);
-                setPosts([]);
-                setPage(1);
-                setHasMore(true);
+                setPosts([]); // Clear posts when category changes
+                setPage(1); // Reset page to 1
+                setHasMore(true); // Reset "has more" state
               }}
               className={`px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium ${
                 category === cat ? "bg-[#DAD6D1]" : "hover:bg-muted"
@@ -225,7 +230,7 @@ function BlogCard({ id, image, category, title, description, author, date }) {
         </p>
         <div className="flex items-center text-sm">
           <img
-            className="w-8 h-8 rounded-full mr-2"
+            className="w-8 h-8 object-cover rounded-full mr-2"
             src={authorImage}
             alt={author}
           />
