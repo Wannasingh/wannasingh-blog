@@ -1,6 +1,6 @@
-import NavBar from "@/components/NavBar";
-import Footer from "@/components/Footer";
+import { NavBar, Footer } from "@/components/WebSection";
 import ViewPost from "@/components/ViewPost";
+
 export default function ViewPostPage() {
   return (
     <div className="flex flex-col min-h-screen">
