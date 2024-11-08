@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { Toaster } from './components/ui/sonner';
 import HomePage from './pages/HomePage';
 import ViewPostPage from './pages/ViewPostPage';
-import NotFoundPage from './pages/NotFoundPage';
+// import NotFoundPage from './pages/NotFoundPage';
 
 function App() {
   return (
@@ -11,7 +11,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/post/:postId" element={<ViewPostPage />} />
-          <Route path="*" element={<NotFoundPage />} />
+          {/* <Route path="*" element={<NotFoundPage />} /> */}
         </Routes>
       </Router>
       <Toaster
