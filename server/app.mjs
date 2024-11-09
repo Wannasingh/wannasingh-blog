@@ -90,6 +90,31 @@ app.get("/posts", async (req, res) => {
     });
   }
 });
+
+app.put("/posts/:id", async (req, res) => {
+  const { id } = req.params;
+  const updatedPost = req.body;
+
+  try {
+    const query = `update posts set title = $1, image = $2, category_id = $3, description = $4, content = $5, status_id = $6 where id = $7`;
+    const values = [
+      updatedPost.title,
+      updatedPost.image,
+      updatedPost.category_id,
+      updatedPost.description,
+      updatedPost.content,
+      updatedPost.status_id,
+      id,
+    ];
+
+    await connectionPool.query(query, values);
+  } catch {
+    return res.status(500).json({
+      message: `Server could not update post because database connection`,
+    });
+  }
+  return res.status(200).json({ message: "Updated post successfully" });
+});
 app.listen(port, () => {
   console.log(`Server is running at ${port}`);
 });
