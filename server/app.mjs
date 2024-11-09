@@ -72,6 +72,24 @@ app.get("/posts/:id", async (req, res) => {
   }
 });
 
+app.get("/posts", async (req, res) => {
+  const category = req.query.category;
+  const length = req.query.length;
+
+  try {
+    const query = category
+      ? `select * from posts where category_id = $1 limit $2`
+      : "select * from posts limit $1";
+    const values = category ? [category, length] : [length];
+    const result = await connectionPool.query(query, values);
+
+    return res.status(200).json(result.rows);
+  } catch {
+    return res.status(500).json({
+      message: `Server could not fetch posts because database connection`,
+    });
+  }
+});
 app.listen(port, () => {
   console.log(`Server is running at ${port}`);
 });
