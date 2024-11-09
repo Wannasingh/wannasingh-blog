@@ -17,7 +17,6 @@ app.post("/posts", async (req, res) => {
   try {
     const query = `insert into posts (title, image, category_id, description, content, status_id)
     values ($1, $2, $3, $4, $5, $6)`;
-
     const values = [
       newPost.title,
       newPost.image,
@@ -33,7 +32,6 @@ app.post("/posts", async (req, res) => {
       message: `Server could not create post because database connection`,
     });
   }
-
   return res.status(201).json({ message: "Created post successfully" });
 });
 
@@ -54,6 +52,25 @@ app.get("/posts", async (req, res) => {
   }
 });
 
+app.get("/posts/:id", async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const query = "select * from posts where id = $1";
+    const values = [id];
+    const result = await connectionPool.query(query, values);
+
+    if (!result.rows.length) {
+      return res.status(404).json({ message: "Post not found" });
+    }
+
+    return res.status(200).json(result.rows[0]);
+  } catch {
+    return res.status(500).json({
+      message: `Server could not fetch post because database connection`,
+    });
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server is running at ${port}`);
