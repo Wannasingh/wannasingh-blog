@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.send("Hello TechUp!");
+  res.send("Welcome to the Wannasingh Blog API!");
 });
 
 app.post("/posts", async (req, res) => {
@@ -36,6 +36,24 @@ app.post("/posts", async (req, res) => {
 
   return res.status(201).json({ message: "Created post successfully" });
 });
+
+app.get("/posts", async (req, res) => {
+  const { keyword } = req.query;
+
+  try {
+    const query = keyword
+      ? `select * from posts where title ILIKE '%${keyword}%'`
+      : "select * from posts";
+
+    const result = await connectionPool.query(query);
+    return res.status(200).json(result.rows);
+  } catch {
+    return res.status(500).json({
+      message: `Server could not fetch posts because database connection`,
+    });
+  }
+});
+
 
 app.listen(port, () => {
   console.log(`Server is running at ${port}`);
