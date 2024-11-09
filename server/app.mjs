@@ -115,6 +115,23 @@ app.put("/posts/:id", async (req, res) => {
   }
   return res.status(200).json({ message: "Updated post successfully" });
 });
-app.listen(port, () => {
+
+app.delete("/posts/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const query = "delete from posts where id = $1";
+    const values = [id];
+    await connectionPool.query(query, values);
+    
+    return res.status(200).json({ message: "Deleted post successfully" });
+
+  } catch {
+    return res.status(500).json({
+      message: `Server could not delete post because database connection`,
+    });
+  }
+});
+
+  app.listen(port, () => {
   console.log(`Server is running at ${port}`);
 });
