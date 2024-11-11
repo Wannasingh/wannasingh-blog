@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import connectionPool from "./utils/db.mjs";
+import { validateCreatePostData } from "./middlewares/post.validation.mjs";
 
 const app = express();
 const port = process.env.PORT || 4001;
@@ -12,11 +13,11 @@ app.get("/", (req, res) => {
   res.send("Welcome to the Wannasingh Blog API!");
 });
 
-app.post("/posts", async (req, res) => {
+app.post("/posts", [validateCreatePostData], async (req, res) => {
   const newPost = req.body;
   try {
-    const query = `insert into posts (title, image, category_id, description, content, status_id)
-    values ($1, $2, $3, $4, $5, $6)`;
+    const query = `INSERT INTO posts (title, image, category_id, description, content, status_id)
+                   VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
     const values = [
       newPost.title,
       newPost.image,
@@ -26,13 +27,14 @@ app.post("/posts", async (req, res) => {
       newPost.status_id,
     ];
 
-    await connectionPool.query(query, values);
-  } catch {
+    const result = await connectionPool.query(query, values);
+    return res.status(201).json({ message: "Created post successfully", post: result.rows[0] });
+  } catch (error) {
+    console.error("Error creating post:", error);
     return res.status(500).json({
-      message: `Server could not create post because database connection`,
+      message: "Server could not create post due to a database error",
     });
   }
-  return res.status(201).json({ message: "Created post successfully" });
 });
 
 app.get("/posts", async (req, res) => {
