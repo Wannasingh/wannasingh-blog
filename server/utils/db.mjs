@@ -1,9 +1,8 @@
-import * as pg from "pg";
-const { Pool } = pg.default;
-import dotenv from "dotenv";
+import { createClient } from '@supabase/supabase-js'
+import dotenv from 'dotenv'
 
-const connectionPool = new Pool({
-  connectionString: process.env.CONNECTION_STRING,
-});
+dotenv.config()
 
-export default connectionPool;
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_API_KEY)
+
+export default supabase
