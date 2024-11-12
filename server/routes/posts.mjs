@@ -2,8 +2,6 @@ import express, { Router } from "express";
 
 const postRouter = Router();
 
-
-
 postRouter.get("/posts", async (req, res) => {
     try {
         const query = "SELECT * FROM posts";
