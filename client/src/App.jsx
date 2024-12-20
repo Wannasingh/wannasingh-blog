@@ -67,6 +67,9 @@ function App() {
             path="/admin/reset-password"
             element={<AdminResetPasswordPage />}
           />
+          <Route path="/signup" element={<SignUpPage />} />
+          <Route path="/signup/success" element={<SignUpSuccessPage />} />
+          <Route path="/login" element={<LoginPage />} />
         </Routes>
       </Router>
       <Toaster

@@ -2,59 +2,55 @@ import { useState } from "react";
 import { NavBar, Footer } from "@/components/WebSection";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
+import axios from "axios";
+import { toast } from "sonner";
+
 
 export default function SignUpPage() {
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isValidName, setIsValidName] = useState(false);
-  const [isValidUsername, setIsValidUsername] = useState(false);
-  const [isValidEmail, setIsValidEmail] = useState(false);
-  const [isValidPassword, setIsValidPassword] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    let valid = true;
+    setIsSubmitted(true);
 
-    if (!name.trim()) {
-      setIsValidName(true);
-      valid = false;
-    } else {
-      setIsValidName(false);
-    }
+    if (name.trim() && username.trim() && email.trim() && password.trim()) {
+      setIsLoading(true);
+      try {
+        const response = await axios.post(
+          "http://localhost:4001/auth/register",
+          {
+            name,
+            username,
+            email,
+            password,
+          }
+        );
 
-    if (!username.trim()) {
-      setIsValidUsername(true);
-      valid = false;
-    } else {
-      setIsValidUsername(false);
-    }
-
-    if (!email.trim()) {
-      setIsValidEmail(true);
-      valid = false;
-    } else {
-      setIsValidEmail(false);
-    }
-
-    if (!password.trim()) {
-      setIsValidPassword(true);
-      valid = false;
-    } else {
-      setIsValidPassword(false);
-    }
-
-    if (valid) {
-      console.log("Sign up successful:", { name, username, email, password });
-      // Add logic for signing up (e.g., API call)
-
-      // Navigate to the login page after signup
-      navigate("/signup/success");
+        if (response.status === 201) {
+          toast.success("Sign up successful!");
+          navigate("/signup/success");
+        }
+      } catch (error) {
+        console.error("Registration error:", error);
+        toast.error(
+          error.response?.data?.message ||
+            "An error occurred during registration"
+        );
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
-
+  const isValidName = name.trim() !== "";
+  const isValidUsername = username.trim() !== "";
+  const isValidEmail = email.trim() !== "";
+  const isValidPassword = password.trim() !== "";
   return (
     <div className="flex flex-col min-h-screen">
       <NavBar />
@@ -77,10 +73,10 @@ export default function SignUpPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${
-                  !isValidName ? "border-red-500" : ""
+                  isSubmitted && !isValidName ? "border-red-500" : ""
                 }`}
               />
-              {!isValidName && (
+              {isSubmitted && !isValidName && (
                 <p className="text-red-500 text-xs absolute">
                   Please enter your name.
                 </p>
@@ -99,10 +95,10 @@ export default function SignUpPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${
-                  !isValidUsername ? "border-red-500" : ""
+                  isSubmitted && !isValidUsername ? "border-red-500" : ""
                 }`}
               />
-              {!isValidUsername && (
+              {isSubmitted && !isValidUsername && (
                 <p className="text-red-500 text-xs absolute">
                   Please enter a username.
                 </p>
@@ -122,10 +118,10 @@ export default function SignUpPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${
-                  !isValidEmail ? "border-red-500" : ""
+                  isSubmitted && !isValidEmail ? "border-red-500" : ""
                 }`}
               />
-              {!isValidEmail && (
+              {isSubmitted && !isValidEmail && (
                 <p className="text-red-500 text-xs absolute">
                   Please enter a valid email.
                 </p>
@@ -145,10 +141,10 @@ export default function SignUpPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${
-                  !isValidPassword ? "border-red-500" : ""
+                  isSubmitted && !isValidPassword ? "border-red-500" : ""
                 }`}
               />
-              {!isValidPassword && (
+              {isSubmitted && !isValidPassword && (
                 <p className="text-red-500 text-xs absolute">
                   Please enter a password.
                 </p>
@@ -157,9 +153,10 @@ export default function SignUpPage() {
             <div className="flex justify-center">
               <button
                 type="submit"
-                className="px-8 py-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors"
+                className="px-8 py-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isLoading}
               >
-                Sign up
+                {isLoading ? "Signing up..." : "Sign up"}
               </button>
             </div>
           </form>
