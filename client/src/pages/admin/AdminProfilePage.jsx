@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AdminSidebar } from "@/components/AdminWebSection";
+
 export default function AdminProfilePage() {
   return (
     <div className="flex h-screen bg-gray-100">
@@ -14,6 +15,7 @@ export default function AdminProfilePage() {
           <h2 className="text-2xl font-semibold">Profile</h2>
           <Button className="px-8 py-2 rounded-full">Save</Button>
         </div>
+
         <div>
           <div className="flex items-center mb-6">
             <Avatar className="w-24 h-24 mr-4">
@@ -25,6 +27,7 @@ export default function AdminProfilePage() {
             </Avatar>
             <Button variant="outline">Upload profile picture</Button>
           </div>
+
           <form className="space-y-7 max-w-2xl">
             <div>
               <label htmlFor="name">Name</label>
@@ -56,6 +59,7 @@ export default function AdminProfilePage() {
               <Textarea
                 id="bio"
                 defaultValue="I am a pet enthusiast and freelance writer who specializes in animal behavior and care. With a deep love for cats, I enjoy sharing insights on feline companionship and wellness.
+
 When I'm not writing, I spends time volunteering at my local animal shelter, helping cats find loving homes."
                 rows={10}
                 className="mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"

@@ -2,55 +2,110 @@ import { useState } from "react";
 import { NavBar, Footer } from "@/components/WebSection";
 import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
-import axios from "axios";
+import { useAuth } from "@/contexts/authentication";
 import { toast } from "sonner";
-
+import { X, Loader2 } from "lucide-react";
 
 export default function SignUpPage() {
-  const [name, setName] = useState("");
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const { register, state } = useAuth();
   const navigate = useNavigate();
+
+  const [formValues, setFormValues] = useState({
+    name: "",
+    username: "",
+    email: "",
+    password: "",
+  });
+  const [formErrors, setFormErrors] = useState({});
+
+  const validateInputs = () => {
+    const errors = {};
+
+    // Validate name
+    if (!formValues.name.trim()) {
+      errors.name = "Name is required.";
+    } else if (!/^[a-zA-Z\s]+$/.test(formValues.name)) {
+      errors.name = "Name must contain only letters and spaces.";
+    } else if (formValues.name.length < 3) {
+      errors.name = "Name must be at least 3 characters long.";
+    }
+
+    // Validate username
+    if (!formValues.username.trim()) {
+      errors.username = "Username is required.";
+    } else if (!/^[a-zA-Z0-9._-]+$/.test(formValues.username)) {
+      errors.username =
+        "Username can only contain letters, numbers, dots, underscores, and dashes.";
+    } else if (formValues.username.length < 5) {
+      errors.username = "Username must be at least 5 characters long.";
+    } else if (formValues.username.length > 15) {
+      errors.username = "Username cannot exceed 15 characters.";
+    }
+
+    // Validate email
+    if (!formValues.email.trim()) {
+      errors.email = "Email is required.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formValues.email)) {
+      errors.email = "Please enter a valid email address.";
+    }
+
+    // Validate password
+    if (!formValues.password.trim()) {
+      errors.password = "Password is required.";
+    } else if (!/(?=.*[a-zA-Z])(?=.*[0-9])/.test(formValues.password)) {
+      errors.password = "Password must contain letters and numbers.";
+    } else if (formValues.password.length < 8) {
+      errors.password = "Password must be at least 8 characters long.";
+    }
+
+    return errors;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitted(true);
+    const errors = validateInputs();
+    setFormErrors(errors);
 
-    if (name.trim() && username.trim() && email.trim() && password.trim()) {
-      setIsLoading(true);
-      try {
-        const response = await axios.post(
-          "http://localhost:4001/auth/register",
-          {
-            name,
-            username,
-            email,
-            password,
-          }
-        );
+    if (Object.keys(errors).length === 0) {
+      const result = await register(formValues);
+      if (result?.error) {
+        let suggestionMessage = "";
 
-        if (response.status === 201) {
-          toast.success("Sign up successful!");
-          navigate("/signup/success");
+        // Check for email or username-related issues
+        if (result.error.toLowerCase().includes("email")) {
+          suggestionMessage = "Try using a different email address.";
+        } else if (result.error.toLowerCase().includes("username")) {
+          suggestionMessage = "Try using a different username.";
         }
-      } catch (error) {
-        console.error("Registration error:", error);
-        toast.error(
-          error.response?.data?.message ||
-            "An error occurred during registration"
-        );
-      } finally {
-        setIsLoading(false);
+
+        return toast.custom((t) => (
+          <div className="bg-red-500 text-white p-4 rounded-sm flex justify-between items-start">
+            <div>
+              <h2 className="font-bold text-lg mb-1">{result.error}</h2>
+              <p className="text-sm">
+                {suggestionMessage && (
+                  <span className="block mt-2 text-sm">
+                    {suggestionMessage}
+                  </span>
+                )}
+              </p>
+            </div>
+            <button
+              onClick={() => toast.dismiss(t)}
+              className="text-white hover:text-gray-200"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        ));
       }
     }
   };
-  const isValidName = name.trim() !== "";
-  const isValidUsername = username.trim() !== "";
-  const isValidEmail = email.trim() !== "";
-  const isValidPassword = password.trim() !== "";
+
+  const handleChange = (key, value) => {
+    setFormValues((prev) => ({ ...prev, [key]: value }));
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <NavBar />
@@ -70,15 +125,16 @@ export default function SignUpPage() {
               <Input
                 id="name"
                 placeholder="Full name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={formValues.name}
+                onChange={(e) => handleChange("name", e.target.value)}
                 className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${
-                  isSubmitted && !isValidName ? "border-red-500" : ""
+                  formErrors.name ? "border-red-500" : ""
                 }`}
+                disabled={state.loading}
               />
-              {isSubmitted && !isValidName && (
+              {formErrors.name && (
                 <p className="text-red-500 text-xs absolute">
-                  Please enter your name.
+                  {formErrors.name}
                 </p>
               )}
             </div>
@@ -92,15 +148,16 @@ export default function SignUpPage() {
               <Input
                 id="username"
                 placeholder="Username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={formValues.username}
+                onChange={(e) => handleChange("username", e.target.value)}
                 className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${
-                  isSubmitted && !isValidUsername ? "border-red-500" : ""
+                  formErrors.username ? "border-red-500" : ""
                 }`}
+                disabled={state.loading}
               />
-              {isSubmitted && !isValidUsername && (
+              {formErrors.username && (
                 <p className="text-red-500 text-xs absolute">
-                  Please enter a username.
+                  {formErrors.username}
                 </p>
               )}
             </div>
@@ -115,15 +172,16 @@ export default function SignUpPage() {
                 id="email"
                 type="email"
                 placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={formValues.email}
+                onChange={(e) => handleChange("email", e.target.value)}
                 className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${
-                  isSubmitted && !isValidEmail ? "border-red-500" : ""
+                  formErrors.email ? "border-red-500" : ""
                 }`}
+                disabled={state.loading}
               />
-              {isSubmitted && !isValidEmail && (
+              {formErrors.email && (
                 <p className="text-red-500 text-xs absolute">
-                  Please enter a valid email.
+                  {formErrors.email}
                 </p>
               )}
             </div>
@@ -138,25 +196,31 @@ export default function SignUpPage() {
                 id="password"
                 type="password"
                 placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={formValues.password}
+                onChange={(e) => handleChange("password", e.target.value)}
                 className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${
-                  isSubmitted && !isValidPassword ? "border-red-500" : ""
+                  formErrors.password ? "border-red-500" : ""
                 }`}
+                disabled={state.loading}
               />
-              {isSubmitted && !isValidPassword && (
+              {formErrors.password && (
                 <p className="text-red-500 text-xs absolute">
-                  Please enter a password.
+                  {formErrors.password}
                 </p>
               )}
             </div>
             <div className="flex justify-center">
               <button
                 type="submit"
-                className="px-8 py-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isLoading}
+                className="px-8 py-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors flex items-center gap-1"
+                disabled={state.loading}
               >
-                {isLoading ? "Signing up..." : "Sign up"}
+                {state.loading ? (
+                  <Loader2 className="animate-spin" size={20} />
+                ) : (
+                  ""
+                )}
+                Sign up
               </button>
             </div>
           </form>

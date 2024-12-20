@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AdminSidebar } from "@/components/AdminWebSection";
+
 export default function AdminNotificationPage() {
   const notifications = [
     {
@@ -33,6 +34,7 @@ export default function AdminNotificationPage() {
       {/* Main content */}
       <main className="flex-1 p-8 bg-gray-50 overflow-hidden">
         <h2 className="text-2xl font-semibold mb-6">Notification</h2>
+
         <div className="space-y-4">
           {notifications.map((notification) => (
             <div key={notification.id}>

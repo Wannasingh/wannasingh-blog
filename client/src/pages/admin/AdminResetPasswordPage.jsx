@@ -12,6 +12,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
 export default function AdminResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -22,21 +23,25 @@ export default function AdminResetPasswordPage() {
     confirmNewPassword: true,
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const isValidPassword = password.trim() !== "";
     const isValidNewPassword = newPassword.trim() !== "";
     const isValidConfirmPassword =
       confirmNewPassword.trim() !== "" && confirmNewPassword === newPassword;
+
     setValid({
       password: isValidPassword,
       newPassword: isValidNewPassword,
       confirmNewPassword: isValidConfirmPassword,
     });
+
     if (isValidPassword && isValidNewPassword && isValidConfirmPassword) {
       setIsDialogOpen(true);
     }
   };
+
   const handleResetPassword = () => {
     // Add PUT API to reset password
     toast.custom((t) => (
@@ -70,6 +75,7 @@ export default function AdminResetPasswordPage() {
             Reset Password
           </Button>
         </div>
+
         <div className="space-y-7 max-w-md">
           <div className="relative">
             <label
@@ -150,6 +156,7 @@ export default function AdminResetPasswordPage() {
     </div>
   );
 }
+
 function ResetPasswordModal({ dialogState, setDialogState, resetFunction }) {
   return (
     <AlertDialog open={dialogState} onOpenChange={setDialogState}>
