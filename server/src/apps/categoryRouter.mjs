@@ -1,17 +1,23 @@
+import express from "express";
 import connectionPool from "../utils/db.mjs";
+import protectAdmin from "../middleware/protectAdmin.mjs";
 
-export const getAllCategories = async (req, res) => {
+const categoryRouter = express.Router();
+
+// Get all categories
+categoryRouter.get("/", async (req, res) => {
   try {
     const { rows } = await connectionPool.query(
       "SELECT * FROM categories ORDER BY id"
     );
     return res.status(200).json(rows);
-  } catch (error) {
+  } catch {
     return res.status(500).json({ error: "Failed to fetch categories" });
   }
-};
+});
 
-export const getCategoryById = async (req, res) => {
+// Get category by ID
+categoryRouter.get("/:id", async (req, res) => {
   const { id } = req.params;
   try {
     const { rows } = await connectionPool.query(
@@ -22,24 +28,26 @@ export const getCategoryById = async (req, res) => {
       return res.status(404).json({ error: "Category not found" });
     }
     return res.json(rows[0]);
-  } catch (error) {
+  } catch {
     return res.status(500).json({ error: "Failed to fetch category" });
   }
-};
+});
 
-export const createCategory = async (req, res) => {
+// Create a new category
+categoryRouter.post("/", protectAdmin, async (req, res) => {
   const { name } = req.body;
   try {
     await connectionPool.query("INSERT INTO categories (name) VALUES ($1)", [
       name,
     ]);
     return res.status(201).json({ message: "Created category successfully" });
-  } catch (error) {
+  } catch {
     return res.status(500).json({ error: "Failed to create category" });
   }
-};
+});
 
-export const updateCategory = async (req, res) => {
+// Update an existing category
+categoryRouter.put("/:id", protectAdmin, async (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
   try {
@@ -50,13 +58,14 @@ export const updateCategory = async (req, res) => {
     if (result.rowCount === 0) {
       return res.status(404).json({ error: "Category not found" });
     }
-    return res.status(200).json({ message: "Updated category successfully" });
-  } catch (error) {
+    return res.status(201).json({ message: "Updated category successfully" });
+  } catch {
     return res.status(500).json({ error: "Failed to update category" });
   }
-};
+});
 
-export const deleteCategory = async (req, res) => {
+// Delete a category
+categoryRouter.delete("/:id", protectAdmin, async (req, res) => {
   const { id } = req.params;
   try {
     const result = await connectionPool.query(
@@ -67,7 +76,9 @@ export const deleteCategory = async (req, res) => {
       return res.status(404).json({ error: "Category not found" });
     }
     return res.json({ message: "Deleted category successfully" });
-  } catch (error) {
+  } catch {
     return res.status(500).json({ error: "Failed to delete category" });
   }
-};
+});
+
+export default categoryRouter;

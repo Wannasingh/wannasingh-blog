@@ -1,3 +1,4 @@
+import { Router } from "express";
 import { createClient } from "@supabase/supabase-js";
 import connectionPool from "../utils/db.mjs";
 
@@ -5,8 +6,9 @@ const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
+const authRouter = Router();
 
-export const register = async (req, res) => {
+authRouter.post("/register", async (req, res) => {
   const { email, password, username, name } = req.body;
 
   try {
@@ -58,9 +60,9 @@ export const register = async (req, res) => {
   } catch {
     res.status(500).json({ error: "An error occurred during registration" });
   }
-};
+});
 
-export const login = async (req, res) => {
+authRouter.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
   try {
@@ -89,9 +91,9 @@ export const login = async (req, res) => {
   } catch {
     return res.status(500).json({ error: "An error occurred during login" });
   }
-};
+});
 
-export const getUser = async (req, res) => {
+authRouter.get("/get-user", async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
 
   if (!token) {
@@ -121,9 +123,9 @@ export const getUser = async (req, res) => {
   } catch {
     res.status(500).json({ error: "Internal server error" });
   }
-};
+});
 
-export const resetPassword = async (req, res) => {
+authRouter.put("/reset-password", async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1]; // Get the token from the Authorization header
   const { oldPassword, newPassword } = req.body; // Extract the new password from the request body
 
@@ -171,4 +173,6 @@ export const resetPassword = async (req, res) => {
   } catch {
     res.status(500).json({ error: "Internal server error" });
   }
-};
+});
+
+export default authRouter;

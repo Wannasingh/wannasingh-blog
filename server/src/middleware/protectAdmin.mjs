@@ -3,7 +3,7 @@ import connectionPool from "../utils/db.mjs";
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY,
+  process.env.SUPABASE_ANON_KEY
 );
 
 // Middleware to check for valid JWT token and if the user has an "admin" role
