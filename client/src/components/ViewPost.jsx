@@ -47,7 +47,7 @@ export default function ViewPost() {
     setIsLoading(true);
     try {
       const response = await axios.get(
-        `https://blog-post-project-api-with-db.vercel.app/posts/${param.postId}`
+        `wannasingh-blog-server.vercel.app/posts/${param.id}`
       );
       setImg(response.data.image);
       setTitle(response.data.title);
@@ -279,7 +279,7 @@ function AuthorBio() {
         </div>
         <div>
           <p className="text-sm">Author</p>
-          <h3 className="text-2xl font-bold">Thompson P.</h3>
+          <h3 className="text-2xl font-bold">Wannasingh K.</h3>
         </div>
       </div>
       <hr className="border-gray-300 mb-4" />

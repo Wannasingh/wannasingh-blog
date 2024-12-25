@@ -29,7 +29,7 @@ export function NavBar() {
   return (
     <nav className="flex items-center justify-between py-4 px-4 md:px-8 bg-background border-b border-muted">
       <button onClick={() => navigate("/")} className="text-2xl font-bold">
-        Thomson P<span className="text-green-400">.</span>
+        Wannasingh K<span className="text-green-400">.</span>
       </button>
       {state.getUserLoading ? (
         <div className="hidden sm:flex items-center ">
@@ -254,7 +254,7 @@ export function HeroSection() {
         />
         <div className="lg:w-1/3 lg:pl-8">
           <h2 className="text-xl font-semibold mb-2">-Author</h2>
-          <h3 className="text-2xl font-bold mb-4">Thompson P.</h3>
+          <h3 className="text-2xl font-bold mb-4">Wannasingh K.</h3>
           <p className="text-muted-foreground mb-4">
             I am a pet enthusiast and freelance writer who specializes in animal
             behavior and care. With a deep love for cats, I enjoy sharing

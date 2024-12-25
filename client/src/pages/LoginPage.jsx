@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/authentication";
 import { toast } from "sonner";
 import { X, Loader2 } from "lucide-react";
-import axios from "axios";
 
 export default function LoginPage() {
   const { login, state } = useAuth();
