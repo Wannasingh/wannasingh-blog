@@ -1,15 +1,18 @@
 import {
-  Bell,
+  // Bell,
   FileText,
   FolderOpen,
   Key,
   LogOut,
   User,
   Globe,
+  Bell,
 } from "lucide-react";
 import { useLocation, Link } from "react-router-dom";
+import { useAuth } from "@/contexts/authentication";
 
 export function AdminSidebar() {
+  const { logout } = useAuth();
   const location = useLocation();
 
   // Helper function to check if the current path starts with the base path
@@ -57,6 +60,7 @@ export function AdminSidebar() {
           <User className="mr-3 h-5 w-5" />
           Profile
         </Link>
+        {/* optional requirement */}
         <Link
           to="/admin/notification"
           className={`flex items-center px-4 py-2 ${
@@ -89,8 +93,10 @@ export function AdminSidebar() {
           Go to the website
         </Link>
         <Link
-          to="/"
-          className="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100"
+          onClick={() => {
+            logout();
+          }}
+          className="flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100 cursor-pointer"
         >
           <LogOut className="mr-3 h-5 w-5" />
           Log out

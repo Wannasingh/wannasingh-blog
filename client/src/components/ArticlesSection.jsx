@@ -12,9 +12,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useNavigate } from "react-router-dom";
+import { Skeleton } from "./ui/skeleton";
 
 export default function Articles() {
-  const categories = ["Highlight", "Cat", "Inspiration", "General"];
+  // const categories = ["Highlight", "Cat", "Inspiration", "General"];
   const [category, setCategory] = useState("Highlight");
   const [posts, setPosts] = useState([]);
   const [page, setPage] = useState(1); // Current page state
@@ -23,31 +24,56 @@ export default function Articles() {
   const [searchKeyword, setSearchKeyword] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [isFirstTimeRender, setIsFirstTimeRender] = useState(true);
 
   const navigate = useNavigate();
 
   useEffect(() => {
-    setIsLoading(true); // Set isLoading to true when starting to fetch
+    // Fetch categories only on the first render
+    if (isFirstTimeRender) {
+      const fetchCategories = async () => {
+        try {
+          const responseCategories = await axios.get(
+            "https://wannasingh-blog-server.vercel.app/categories"
+          );
+          setCategories(responseCategories.data);
+          setIsFirstTimeRender(false); // Mark the first render logic as done
+        } catch (error) {
+          console.error("Error fetching categories:", error);
+        }
+      };
+
+      fetchCategories();
+    }
+  }, [isFirstTimeRender]);
+
+  useEffect(() => {
+    // Fetch posts when page or category changes
     const fetchPosts = async () => {
+      setIsLoading(true); // Start loading
       try {
         const response = await axios.get(
-          `https://blog-post-project-api.vercel.app/posts?page=${page}&limit=6&${
+          `https://wannasingh-blog-server.vercel.app/posts?page=${page}&limit=6${
             category !== "Highlight" ? `&category=${category}` : ""
           }`
         );
-        setPosts((prevPosts) => [...prevPosts, ...response.data.posts]);
-        setIsLoading(false); // Set isLoading to false after fetching
+        if (page === 1) {
+          setPosts(response.data.posts); // Replace posts on the first page load
+        } else {
+          setPosts((prevPosts) => [...prevPosts, ...response.data.posts]); // Append on subsequent pages
+        }
+        setIsLoading(false); // Stop loading
         if (response.data.currentPage >= response.data.totalPages) {
           setHasMore(false); // No more posts to load
         }
-      } catch (error) {
-        console.log(error);
-        setIsLoading(false); // Set loading to false in case of error
+      } catch {
+        setIsLoading(false); // Handle error and stop loading
       }
     };
 
-    fetchPosts(); // Call fetchPosts within useEffect
-  }, [page, category]);
+    fetchPosts(); // Call fetchPosts when category or page changes
+  }, [page, category]); // Effect depends on page and category
 
   useEffect(() => {
     if (searchKeyword.length > 0) {
@@ -55,12 +81,11 @@ export default function Articles() {
       const fetchSuggestions = async () => {
         try {
           const response = await axios.get(
-            `https://blog-post-project-api.vercel.app/posts?keyword=${searchKeyword}`
+            `https://wannasingh-blog-server.vercel.app/posts?keyword=${searchKeyword}`
           );
           setSuggestions(response.data.posts); // Set search suggestions
           setIsLoading(false);
-        } catch (error) {
-          console.log(error);
+        } catch {
           setIsLoading(false);
         }
       };
@@ -121,40 +146,65 @@ export default function Articles() {
               setPage(1); // Reset page to 1
               setHasMore(true); // Reset "has more" state
             }}
+            disabled={isLoading}
           >
             <SelectTrigger className="w-full py-3 rounded-sm text-muted-foreground focus:ring-0 focus:ring-offset-0 focus:border-muted-foreground">
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="Highlight">Highlight</SelectItem>
               {categories.map((cat) => {
                 return (
-                  <SelectItem key={cat} value={cat}>
-                    {cat}
+                  <SelectItem key={cat.id} value={cat.name}>
+                    {cat.name}
                   </SelectItem>
                 );
               })}
             </SelectContent>
           </Select>
         </div>
-        <div className="hidden md:flex space-x-2">
-          {categories.map((cat) => (
+        {isFirstTimeRender ? (
+          <div className="hidden md:flex space-x-2">
+            <Skeleton className="w-24 h-10 rounded-sm" />
+            <Skeleton className="w-20 h-10 rounded-sm" />
+            <Skeleton className="w-24 h-10 rounded-sm" />
+            <Skeleton className="w-20 h-10 rounded-sm" />
+          </div>
+        ) : (
+          <div className="hidden md:flex space-x-2">
             <button
-              disabled={category === cat}
-              key={cat}
+              disabled={category === "Highlight"}
               onClick={() => {
-                setCategory(cat);
+                setCategory("Highlight");
                 setPosts([]); // Clear posts when category changes
                 setPage(1); // Reset page to 1
                 setHasMore(true); // Reset "has more" state
               }}
               className={`px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium ${
-                category === cat ? "bg-[#DAD6D1]" : "hover:bg-muted"
+                category === "Highlight" ? "bg-[#DAD6D1]" : "hover:bg-muted"
               }`}
             >
-              {cat}
+              Highlight
             </button>
-          ))}
-        </div>
+            {categories.map((cat) => (
+              <button
+                disabled={category === cat.name}
+                key={cat.id}
+                onClick={() => {
+                  setCategory(cat.name);
+                  setPosts([]); // Clear posts when category changes
+                  setPage(1); // Reset page to 1
+                  setHasMore(true); // Reset "has more" state
+                }}
+                className={`px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium ${
+                  category === cat.name ? "bg-[#DAD6D1]" : "hover:bg-muted"
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       <article className="grid grid-cols-1 md:grid-cols-2 gap-8 px-4 md:px-0">
         {posts.map((blog, index) => {
