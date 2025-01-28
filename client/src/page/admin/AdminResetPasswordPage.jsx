@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AdminSidebar } from "@/components/AdminWebSection";
 import { useState } from "react";
+import axios from "axios";
 import { X } from "lucide-react";
 import {
   AlertDialog,
@@ -12,6 +13,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+
 export default function AdminResetPasswordPage() {
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -22,41 +24,83 @@ export default function AdminResetPasswordPage() {
     confirmNewPassword: true,
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     const isValidPassword = password.trim() !== "";
     const isValidNewPassword = newPassword.trim() !== "";
     const isValidConfirmPassword =
       confirmNewPassword.trim() !== "" && confirmNewPassword === newPassword;
+
     setValid({
       password: isValidPassword,
       newPassword: isValidNewPassword,
       confirmNewPassword: isValidConfirmPassword,
     });
+
     if (isValidPassword && isValidNewPassword && isValidConfirmPassword) {
       setIsDialogOpen(true);
     }
   };
-  const handleResetPassword = () => {
-    // Add PUT API to reset password
-    toast.custom((t) => (
-      <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start">
-        <div>
-          <h2 className="font-bold text-lg mb-1">Reset!</h2>
-          <p className="text-sm">
-            Password reset successful. You can now log in with your new
-            password.
-          </p>
+
+  const handleResetPassword = async () => {
+    try {
+      // Close the dialog
+      setIsDialogOpen(false);
+
+      // Make API call to reset the password using JWT interceptor
+
+      const response = await axios.put(
+        `https://wannasingh-blog-server.vercel.app/auth/reset-password`,
+        {
+          oldPassword: password,
+          newPassword: newPassword,
+        }
+      );
+
+      // Handle successful response
+      if (response.status === 200) {
+        toast.custom((t) => (
+          <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start">
+            <div>
+              <h2 className="font-bold text-lg mb-1">Success!</h2>
+              <p className="text-sm">
+                Password reset successful. You can now log in with your new
+                password.
+              </p>
+            </div>
+            <button
+              onClick={() => toast.dismiss(t)}
+              className="text-white hover:text-gray-200"
+            >
+              <X size={20} />
+            </button>
+          </div>
+        ));
+        setPassword("");
+        setNewPassword("");
+        setConfirmNewPassword("");
+      }
+    } catch (error) {
+      // Handle errors
+      toast.custom((t) => (
+        <div className="bg-red-500 text-white p-4 rounded-sm flex justify-between items-start">
+          <div>
+            <h2 className="font-bold text-lg mb-1">Error</h2>
+            <p className="text-sm">
+              {error.response?.data?.error ||
+                "Something went wrong. Please try again."}
+            </p>
+          </div>
+          <button
+            onClick={() => toast.dismiss(t)}
+            className="text-white hover:text-gray-200"
+          >
+            <X size={20} />
+          </button>
         </div>
-        <button
-          onClick={() => toast.dismiss(t)}
-          className="text-white hover:text-gray-200"
-        >
-          <X size={20} />
-        </button>
-      </div>
-    ));
-    setIsDialogOpen(false);
+      ));
+    }
   };
   return (
     <div className="flex h-screen bg-gray-100">
@@ -70,6 +114,7 @@ export default function AdminResetPasswordPage() {
             Reset Password
           </Button>
         </div>
+
         <div className="space-y-7 max-w-md">
           <div className="relative">
             <label
@@ -150,6 +195,7 @@ export default function AdminResetPasswordPage() {
     </div>
   );
 }
+
 function ResetPasswordModal({ dialogState, setDialogState, resetFunction }) {
   return (
     <AlertDialog open={dialogState} onOpenChange={setDialogState}>

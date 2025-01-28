@@ -1,31 +1,38 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
+
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isErrorEmail, setIsErrorEmail] = useState(false);
   const [isErrorPassword, setIsErrorPassword] = useState(false);
   const navigate = useNavigate();
+
   const handleSubmit = (e) => {
     e.preventDefault();
+
     let valid = true;
+
     if (!email.trim()) {
       setIsErrorEmail(true);
       valid = false;
     } else {
       setIsErrorEmail(false);
     }
+
     if (!password.trim()) {
       setIsErrorPassword(true);
       valid = false;
     } else {
       setIsErrorPassword(false);
     }
+
     if (valid) {
       // Submit the login form
       console.log("Logging in with:", { email, password });
       // Add logic for login submission (e.g., API call)
+
       // Navigate to a new page after login
       navigate("/");
     }
