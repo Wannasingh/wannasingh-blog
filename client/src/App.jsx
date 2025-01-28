@@ -2,7 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import HomePage from "./page/HomePage";
 import ViewPostPage from "./page/ViewPostPage";
 import { Toaster } from "@/components/ui/sonner";
-import NotFoundPage from "./page/NotFoundPage";
+import NotFoundPage from "./page/NotFoundpage";
 import SignUpPage from "./page/SignUpPage";
 import LoginPage from "./page/LoginPage";
 import SignUpSuccessPage from "./page/SignUpSuccessPage";
