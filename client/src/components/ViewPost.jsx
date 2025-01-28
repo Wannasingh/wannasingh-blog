@@ -49,8 +49,8 @@ export default function ViewPost() {
   const getPost = async () => {
     setIsLoading(true);
     try {
-      const postUrl = `https://wannasingh-blog-server.vercel.app/${param.postId}`;
-      // console.log("Fetching post from URL:", postUrl); // Log the URL
+      const postUrl = `https://wannasingh-blog-server.vercel.app/posts/${param.postId}`;
+      console.log("Fetching post from URL:", postUrl); // Log the URL
       const postsResponse = await axios.get(postUrl);
       setImg(postsResponse.data.image);
       setTitle(postsResponse.data.title);
@@ -59,11 +59,11 @@ export default function ViewPost() {
       setCategory(postsResponse.data.category);
       setContent(postsResponse.data.content);
       const likesResponse = await axios.get(
-        `https://wannasingh-blog-server.vercel.app/${param.postId}/likes`
+        `https://wannasingh-blog-server.vercel.app/posts/${param.postId}/likes`
       );
       setLikes(likesResponse.data.like_count);
       const commentsResponse = await axios.get(
-        `https://wannasingh-blog-server.vercel.app/${param.postId}/comments`
+        `https://wannasingh-blog-server.vercel.app/posts/${param.postId}/comments`
       );
       setComments(commentsResponse.data);
       setIsLoading(false);
@@ -155,13 +155,13 @@ function Share({ likesAmount, setDialogState, user, setLikes }) {
       // First try to like the post
       try {
         await axios.post(
-          `https://wannasingh-blog-server.vercel.app/${param.postId}/likes`
+          `https://wannasingh-blog-server.vercel.app/posts/${param.postId}/likes`
         ); // Corrected URL
       } catch (error) {
         // If we get a 500 error, assume the post is already liked and try to unlike
         if (error.response?.status === 500) {
           await axios.delete(
-            `https://wannasingh-blog-server.vercel.app/${param.postId}/likes`
+            `https://wannasingh-blog-server.vercel.app/posts/${param.postId}/likes`
           ); // Corrected URL
         } else {
           // If it's a different error, throw it to be caught by the outer try-catch
@@ -171,12 +171,11 @@ function Share({ likesAmount, setDialogState, user, setLikes }) {
 
       // After either liking or unliking, get the updated like count
       const likesResponse = await axios.get(
-        `https://wannasingh-blog-server.vercel.app/${param.postId}/likes`
+        `https://wannasingh-blog-server.vercel.app/posts/${param.postId}/likes`
       ); // Corrected URL
       setLikes(likesResponse.data.like_count);
     } catch (error) {
-      console.error("Error handling like/unlike:", error);
-      // You might want to show an error message to the user here
+      console.error("Error", error);
     } finally {
       setIsLiking(false);
     }
@@ -266,14 +265,14 @@ function Comment({ setDialogState, commentList, setComments, user }) {
       setIsError(false);
       setCommentText("");
       await axios.post(
-        `https://wannasingh-blog-server.vercel.app/${param.postId}/comments`,
+        `https://wannasingh-blog-server.vercel.app/posts/${param.postId}/comments`,
         {
           // Corrected URL
           comment: commentText,
         }
       );
       const commentsResponse = await axios.get(
-        `https://wannasingh-blog-server.vercel.app/${param.postId}/comments` // Corrected URL
+        `https://wannasingh-blog-server.vercel.app/posts/${param.postId}/comments` // Corrected URL
       );
       setComments(commentsResponse.data);
       toast.custom((t) => (
