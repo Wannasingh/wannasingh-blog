@@ -277,15 +277,24 @@ export function Footer() {
       <div className="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
         <span className="font-medium">Get in touch</span>
         <div className="flex space-x-4">
-          <a href="#" className="hover:text-muted-foreground">
+          <a
+            href="https://www.linkedin.com/in/wannasingh/"
+            className="hover:text-muted-foreground"
+          >
             <Linkedin size={24} />
             <span className="sr-only">LinkedIn</span>
           </a>
-          <a href="#" className="hover:text-muted-foreground">
+          <a
+            href="https://github.com/wannasingh"
+            className="hover:text-muted-foreground"
+          >
             <Github size={24} />
             <span className="sr-only">GitHub</span>
           </a>
-          <a href="#" className="hover:text-muted-foreground">
+          <a
+            href="mailto:wannasingh.khan@gmail.com"
+            className="hover:text-muted-foreground"
+          >
             <Mail size={24} />
             <span className="sr-only">Email</span>
           </a>
