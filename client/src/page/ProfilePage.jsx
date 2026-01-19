@@ -127,13 +127,19 @@ export default function ProfilePage() {
         formData.append("imageFile", imageFile);
       }
 
+      const token = localStorage.getItem("token");
+      
       await axios.put(
         `${import.meta.env.VITE_API_URL}/profile`,
         formData,
         {
-          headers: { "Content-Type": "multipart/form-data" },
+          headers: { 
+            "Content-Type": "multipart/form-data",
+            "Authorization": `Bearer ${token}`
+          },
         }
       );
+
 
       toast.custom((t) => (
         <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start">
@@ -151,12 +157,13 @@ export default function ProfilePage() {
           </button>
         </div>
       ));
-    } catch {
+    } catch (error) {
+      const errorMessage = error.response?.data?.message || error.response?.data?.error || "Please try again later.";
       toast.custom((t) => (
         <div className="bg-red-500 text-white p-4 rounded-sm flex justify-between items-start">
           <div>
             <h2 className="font-bold text-lg mb-1">Failed to update profile</h2>
-            <p className="text-sm">Please try again later.</p>
+            <p className="text-sm">{errorMessage}</p>
           </div>
           <button
             onClick={() => toast.dismiss(t)}
