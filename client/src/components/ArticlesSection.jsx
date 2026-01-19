@@ -37,16 +37,23 @@ export default function Articles() {
           const responseCategories = await axios.get(
             `${import.meta.env.VITE_API_URL}/categories`
           );
-          setCategories(responseCategories.data);
+          // Ensure data is an array before setting state
+          const categoriesData = Array.isArray(responseCategories.data) 
+            ? responseCategories.data 
+            : [];
+          setCategories(categoriesData);
           setIsFirstTimeRender(false); // Mark the first render logic as done
         } catch (error) {
           console.error("Error fetching categories:", error);
+          setCategories([]); // Set empty array on error
+          setIsFirstTimeRender(false);
         }
       };
 
       fetchCategories();
     }
   }, [isFirstTimeRender]);
+
 
   useEffect(() => {
     // Fetch posts when page or category changes
