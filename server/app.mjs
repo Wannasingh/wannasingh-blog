@@ -21,6 +21,12 @@ app.use("/categories", categoryRouter);
 app.use("/auth", authRouter);
 app.use("/profile", profileRouter);
 
-app.listen(port, () => {
-  console.log(`Server is running at ${port}`);
-});
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  app.listen(port, () => {
+    console.log(`Server is running at ${port}`);
+  });
+}
+
+// Export for Vercel
+export default app;
