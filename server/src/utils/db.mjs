@@ -1,11 +1,11 @@
-// Create PostgreSQL Connection Pool here !
-import * as pg from "pg";
+import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
 
-const { Pool } = pg.default;
+dotenv.config();
 
-const connectionPool = new Pool({
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
-  connectionString: process.env.CONNECTION_STRING,
-});
-
-export default connectionPool;
+export default supabase;

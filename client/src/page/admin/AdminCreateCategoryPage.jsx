@@ -9,13 +9,13 @@ import { useNavigate } from "react-router-dom";
 
 export default function AdminCreateCategoryPage() {
   const navigate = useNavigate();
-  const [categoryName, setCategoryName] = useState(""); // To hold category name input
-  const [isSaving, setIsSaving] = useState(false); // To manage saving state
+  const [categoryName, setCategoryName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   const handleSave = async () => {
     if (!categoryName) {
-      // Handle validation for empty category name
+
       setErrorMessage("Category name is required.");
       return;
     }
@@ -23,12 +23,12 @@ export default function AdminCreateCategoryPage() {
     setIsSaving(true);
 
     try {
-      // Send POST request to create the category
-      await axios.post("https://wannasingh-blog-server.vercel.app/categories", {
+
+      await axios.post(`${import.meta.env.VITE_API_URL}/categories`, {
         name: categoryName,
       });
 
-      // Show success toast
+
       toast.custom((t) => (
         <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start">
           <div>
@@ -48,8 +48,8 @@ export default function AdminCreateCategoryPage() {
         </div>
       ));
 
-      // Optionally reset the form and show a success message
-      setCategoryName(""); // Clear the input after saving
+
+      setCategoryName("");
       navigate("/admin/category-management");
     } catch {
       toast.custom((t) => (
@@ -86,7 +86,7 @@ export default function AdminCreateCategoryPage() {
           <h2 className="text-2xl font-semibold">Create Category</h2>
           <Button
             className="px-8 py-2 rounded-full"
-            onClick={handleSave} // Trigger the save function when clicked
+            onClick={handleSave}
             disabled={isSaving} // Disable button while saving
           >
             Save

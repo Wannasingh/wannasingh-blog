@@ -38,7 +38,7 @@ export default function AdminCategoryManagementPage() {
       try {
         setIsLoading(true);
         const responseCategories = await axios.get(
-          "https://wannasingh-blog-server.vercel.app/categories"
+          `${import.meta.env.VITE_API_URL}/categories`
         );
         setCategories(responseCategories.data);
       } catch (error) {
@@ -63,7 +63,7 @@ export default function AdminCategoryManagementPage() {
     try {
       setIsLoading(true);
       await axios.delete(
-        `https://wannasingh-blog-server.vercel.app/categories/${categoryId}`
+        `${import.meta.env.VITE_API_URL}/categories/${categoryId}`
       );
       toast.custom((t) => (
         <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start">

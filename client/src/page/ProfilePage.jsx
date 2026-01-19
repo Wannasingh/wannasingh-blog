@@ -128,7 +128,7 @@ export default function ProfilePage() {
       }
 
       await axios.put(
-        "https://wannasingh-blog-server.vercel.app/profile",
+        `${import.meta.env.VITE_API_URL}/profile`,
         formData,
         {
           headers: { "Content-Type": "multipart/form-data" },

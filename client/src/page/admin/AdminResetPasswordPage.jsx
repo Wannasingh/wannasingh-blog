@@ -51,7 +51,7 @@ export default function AdminResetPasswordPage() {
       // Make API call to reset the password using JWT interceptor
 
       const response = await axios.put(
-        `https://wannasingh-blog-server.vercel.app/auth/reset-password`,
+        `${import.meta.env.VITE_API_URL}/auth/reset-password`,
         {
           oldPassword: password,
           newPassword: newPassword,

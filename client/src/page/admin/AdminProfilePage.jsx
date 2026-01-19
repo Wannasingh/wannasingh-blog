@@ -22,7 +22,7 @@ export default function AdminProfilePage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        // Set initial profile data from auth state
+
         setProfile({
           image: state.user.profilePic || "",
           name: state.user.name || "",
@@ -65,7 +65,7 @@ export default function AdminProfilePage() {
 
     if (!file) return;
 
-    // Check file type
+
     const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
     if (!allowedTypes.includes(file.type)) {
       toast.custom((t) => (
@@ -87,7 +87,7 @@ export default function AdminProfilePage() {
       return;
     }
 
-    // Check file size (5MB limit)
+
     const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
       toast.custom((t) => (
@@ -127,7 +127,7 @@ export default function AdminProfilePage() {
       }
 
       await axios.put(
-        "https://wannasingh-blog-server.vercel.app/profile",
+        `${import.meta.env.VITE_API_URL}/profile`,
         formData,
         {
           headers: { "Content-Type": "multipart/form-data" },
