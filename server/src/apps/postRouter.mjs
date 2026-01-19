@@ -17,7 +17,7 @@ postRouter.post("/", [imageFileUpload, protectAdmin], async (req, res) => {
   const newPost = req.body;
   const file = req.files.imageFile[0];
 
-  const bucketName = "posts";
+  const bucketName = "articles";
   const filePath = `posts/${Date.now()}`;
 
   try {
@@ -216,7 +216,7 @@ postRouter.put(
   async (req, res) => {
     const postIdFromClient = req.params.postId;
     const updatedPost = { ...req.body, date: new Date() };
-    const bucketName = "my-personal-blog";
+    const bucketName = "articles";
 
     try {
       let publicUrl = updatedPost.image;
