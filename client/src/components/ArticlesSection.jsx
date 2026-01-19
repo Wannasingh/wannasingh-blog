@@ -102,15 +102,15 @@ export default function Articles() {
 
   return (
     <div className="w-full max-w-7xl mx-auto md:px-6 lg:px-8 mb-20">
-      <h2 className="text-xl font-bold mb-4 px-4">Latest articles</h2>
-      <div className="bg-[#EFEEEB] px-4 py-4 md:py-3 md:rounded-sm flex flex-col space-y-4 md:gap-16 md:flex-row-reverse md:items-center md:space-y-0 md:justify-between mb-10">
+      <h2 className="text-2xl md:text-3xl font-bold mb-6 px-4 tracking-tight">Latest Articles</h2>
+      <div className="bg-gradient-to-br from-[#F5F4F1] to-[#EFEEEB] px-6 py-6 md:py-5 md:rounded-xl shadow-sm border border-gray-200/50 flex flex-col space-y-5 md:gap-8 md:flex-row-reverse md:items-center md:space-y-0 md:justify-between mb-12">
         <div className="w-full md:max-w-sm">
           <div className="relative">
-            <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <Search className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <Input
               type="text"
-              placeholder="Search"
-              className="py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
+              placeholder="Search articles..."
+              className="py-3 px-4 rounded-lg bg-white shadow-sm border-gray-200 placeholder:text-gray-400 focus-visible:ring-2 focus-visible:ring-foreground/20 focus-visible:ring-offset-0 focus-visible:border-foreground transition-all"
               onChange={(e) => setSearchKeyword(e.target.value)}
               onFocus={() => setShowDropdown(true)}
               onBlur={() => {
@@ -123,11 +123,11 @@ export default function Articles() {
               showDropdown &&
               searchKeyword &&
               suggestions.length > 0 && (
-                <div className="absolute z-10 w-full mt-2 bg-background rounded-sm shadow-lg p-1">
+                <div className="absolute z-10 w-full mt-2 bg-white rounded-lg shadow-xl border border-gray-100 p-1 overflow-hidden">
                   {suggestions.map((suggestion, index) => (
                     <button
                       key={index}
-                      className="text-start px-4 py-2 block w-full text-sm text-foreground hover:bg-[#EFEEEB] hover:text-muted-foreground hover:rounded-sm cursor-pointer"
+                      className="text-start px-4 py-3 block w-full text-sm text-foreground hover:bg-gradient-to-r hover:from-[#F5F4F1] hover:to-[#EFEEEB] rounded-md cursor-pointer transition-all"
                       onClick={() => navigate(`/post/${suggestion.id}`)}
                     >
                       {suggestion.title}
@@ -148,7 +148,7 @@ export default function Articles() {
             }}
             disabled={isLoading}
           >
-            <SelectTrigger className="w-full py-3 rounded-sm text-muted-foreground focus:ring-0 focus:ring-offset-0 focus:border-muted-foreground">
+            <SelectTrigger className="w-full py-3 px-4 rounded-lg bg-white shadow-sm border-gray-200 text-foreground focus:ring-2 focus:ring-foreground/20 focus:ring-offset-0 focus:border-foreground transition-all">
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
@@ -164,14 +164,14 @@ export default function Articles() {
           </Select>
         </div>
         {isFirstTimeRender ? (
-          <div className="hidden md:flex space-x-2">
-            <Skeleton className="w-24 h-10 rounded-sm" />
-            <Skeleton className="w-20 h-10 rounded-sm" />
-            <Skeleton className="w-24 h-10 rounded-sm" />
-            <Skeleton className="w-20 h-10 rounded-sm" />
+          <div className="hidden md:flex space-x-3">
+            <Skeleton className="w-24 h-11 rounded-full" />
+            <Skeleton className="w-20 h-11 rounded-full" />
+            <Skeleton className="w-24 h-11 rounded-full" />
+            <Skeleton className="w-20 h-11 rounded-full" />
           </div>
         ) : (
-          <div className="hidden md:flex space-x-2">
+          <div className="hidden md:flex md:overflow-x-auto md:scrollbar-hide space-x-3 scroll-smooth pb-1">
             <button
               disabled={category === "Highlight"}
               onClick={() => {
@@ -180,8 +180,10 @@ export default function Articles() {
                 setPage(1); // Reset page to 1
                 setHasMore(true); // Reset "has more" state
               }}
-              className={`px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium ${
-                category === "Highlight" ? "bg-[#DAD6D1]" : "hover:bg-muted"
+              className={`px-5 py-2.5 transition-all duration-200 rounded-full text-sm font-semibold whitespace-nowrap shadow-sm border ${
+                category === "Highlight" 
+                  ? "bg-foreground text-white border-foreground shadow-md scale-105" 
+                  : "bg-white text-foreground border-gray-200 hover:bg-gray-50 hover:shadow-md hover:scale-105 hover:border-gray-300"
               }`}
             >
               Highlight
@@ -196,8 +198,10 @@ export default function Articles() {
                   setPage(1); // Reset page to 1
                   setHasMore(true); // Reset "has more" state
                 }}
-                className={`px-4 py-3 transition-colors rounded-sm text-sm text-muted-foreground font-medium ${
-                  category === cat.name ? "bg-[#DAD6D1]" : "hover:bg-muted"
+                className={`px-5 py-2.5 transition-all duration-200 rounded-full text-sm font-semibold whitespace-nowrap shadow-sm border ${
+                  category === cat.name 
+                    ? "bg-foreground text-white border-foreground shadow-md scale-105" 
+                    : "bg-white text-foreground border-gray-200 hover:bg-gray-50 hover:shadow-md hover:scale-105 hover:border-gray-300"
                 }`}
               >
                 {cat.name}
@@ -205,6 +209,7 @@ export default function Articles() {
             ))}
           </div>
         )}
+
       </div>
       <article className="grid grid-cols-1 md:grid-cols-2 gap-8 px-4 md:px-0">
         {posts.map((blog, index) => {
