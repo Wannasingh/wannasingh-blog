@@ -39,7 +39,7 @@ export default function AdminCreateArticlePage() {
       try {
         setIsLoading(true);
         const responseCategories = await axios.get(
-          "https://wannasingh-blog-server.vercel.app/categories"
+          `${import.meta.env.VITE_API_URL}/categories`
         );
         setCategories(responseCategories.data);
       } catch (error) {
@@ -83,7 +83,7 @@ export default function AdminCreateArticlePage() {
 
     try {
       await axios.post(
-        "https://wannasingh-blog-server.vercel.app/posts",
+        `${import.meta.env.VITE_API_URL}/posts`,
         formData,
         {
           headers: { "Content-Type": "multipart/form-data" },

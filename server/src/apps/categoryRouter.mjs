@@ -1,61 +1,72 @@
 import express from "express";
-import connectionPool from "../utils/db.mjs";
+import supabase from "../utils/db.mjs";
 import protectAdmin from "../middleware/protectAdmin.mjs";
 
 const categoryRouter = express.Router();
 
-// Get all categories
 categoryRouter.get("/", async (req, res) => {
   try {
-    const { rows } = await connectionPool.query(
-      "SELECT * FROM categories ORDER BY id"
-    );
-    return res.status(200).json(rows);
-  } catch {
+    const { data: categories, error } = await supabase
+      .from("categories")
+      .select("*")
+      .order("id");
+
+    if (error) {
+      throw error;
+    }
+
+    return res.status(200).json(categories);
+  } catch (err) {
+    console.error(err);
     return res.status(500).json({ error: "Failed to fetch categories" });
   }
 });
 
-// Get category by ID
-categoryRouter.get("/:id", async (req, res) => {
+categoryRouter.get("/:categoryId", async (req, res) => {
   const { id } = req.params;
   try {
-    const { rows } = await connectionPool.query(
-      "SELECT * FROM categories WHERE id = $1",
-      [id]
-    );
-    if (!rows.length) {
+    const { data: category, error } = await supabase
+      .from("categories")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error || !category) {
       return res.status(404).json({ error: "Category not found" });
     }
-    return res.json(rows[0]);
+    return res.json(category);
   } catch {
     return res.status(500).json({ error: "Failed to fetch category" });
   }
 });
 
-// Create a new category
 categoryRouter.post("/", protectAdmin, async (req, res) => {
   const { name } = req.body;
   try {
-    await connectionPool.query("INSERT INTO categories (name) VALUES ($1)", [
-      name,
-    ]);
+    const { error } = await supabase.from("categories").insert([{ name }]);
+    if (error) {
+      throw error;
+    }
     return res.status(201).json({ message: "Created category successfully" });
   } catch {
     return res.status(500).json({ error: "Failed to create category" });
   }
 });
 
-// Update an existing category
 categoryRouter.put("/:id", protectAdmin, async (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
   try {
-    const result = await connectionPool.query(
-      "UPDATE categories SET name = $1 WHERE id = $2",
-      [name, id]
-    );
-    if (result.rowCount === 0) {
+    const { data, error } = await supabase
+      .from("categories")
+      .update({ name })
+      .eq("id", id)
+      .select();
+
+    if (error) {
+      throw error;
+    }
+    if (data.length === 0) {
       return res.status(404).json({ error: "Category not found" });
     }
     return res.status(201).json({ message: "Updated category successfully" });
@@ -64,15 +75,19 @@ categoryRouter.put("/:id", protectAdmin, async (req, res) => {
   }
 });
 
-// Delete a category
-categoryRouter.delete("/:id", protectAdmin, async (req, res) => {
+categoryRouter.delete("/:categoryId", protectAdmin, async (req, res) => {
   const { id } = req.params;
   try {
-    const result = await connectionPool.query(
-      "DELETE FROM categories WHERE id = $1",
-      [id]
-    );
-    if (result.rowCount === 0) {
+    const { data, error } = await supabase
+      .from("categories")
+      .delete()
+      .eq("id", id)
+      .select();
+
+    if (error) {
+      throw error;
+    }
+    if (data.length === 0) {
       return res.status(404).json({ error: "Category not found" });
     }
     return res.json({ message: "Deleted category successfully" });

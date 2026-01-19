@@ -29,11 +29,11 @@ export default function AdminLoginPage() {
     }
 
     if (valid) {
-      // Submit the login form
-      console.log("Logging in with:", { email, password });
-      // Add logic for login submission (e.g., API call)
 
-      // Navigate to a new page after login
+      console.log("Logging in with:", { email, password });
+
+
+
       navigate("/");
     }
   };

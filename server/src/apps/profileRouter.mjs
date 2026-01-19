@@ -1,13 +1,7 @@
 import { Router } from "express";
-import { createClient } from "@supabase/supabase-js";
-import connectionPool from "../utils/db.mjs";
+import supabase from "../utils/db.mjs";
 import protectUser from "../middleware/protectUser.mjs";
 import multer from "multer";
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
 
 const profileRouter = Router();
 const multerUpload = multer({ storage: multer.memoryStorage() });
@@ -16,11 +10,11 @@ const imageFileUpload = multerUpload.fields([
 ]);
 
 profileRouter.put("/", [imageFileUpload, protectUser], async (req, res) => {
-  const { id: userId } = req.user; // Assuming `req.user` is set by authentication middleware
+  const { id: userId } = req.user;
   const { name, username } = req.body;
-  const file = req.files?.imageFile?.[0]; // Get the uploaded file
+  const file = req.files?.imageFile?.[0];
 
-  // Validation
+
   if (!userId) {
     return res.status(401).json({ message: "Unauthorized access" });
   }
@@ -40,16 +34,15 @@ profileRouter.put("/", [imageFileUpload, protectUser], async (req, res) => {
   let profilePicUrl = null;
 
   try {
-    // If a file is uploaded, upload it to Supabase Storage
     if (file) {
       const bucketName = "profiles";
-      const filePath = `profiles/${userId}-${Date.now()}`; // Generate a unique file path
+      const filePath = `profiles/${userId}-${Date.now()}`;
 
       const { data, error } = await supabase.storage
         .from(bucketName)
         .upload(filePath, file.buffer, {
           contentType: file.mimetype,
-          upsert: false, // Prevent overwriting the file
+          upsert: false,
         });
 
       if (error) {
@@ -57,44 +50,32 @@ profileRouter.put("/", [imageFileUpload, protectUser], async (req, res) => {
         throw new Error("Failed to upload profile picture to storage");
       }
 
-      // Get the public URL of the uploaded file
+
       const {
         data: { publicUrl },
       } = supabase.storage.from(bucketName).getPublicUrl(data.path);
       profilePicUrl = publicUrl;
     }
 
-    // Construct update query dynamically
-    const fieldsToUpdate = [];
-    const values = [];
-    let paramIndex = 1;
 
-    if (name) {
-      fieldsToUpdate.push(`name = $${paramIndex++}`);
-      values.push(name);
-    }
-    if (username) {
-      fieldsToUpdate.push(`username = $${paramIndex++}`);
-      values.push(username);
-    }
-    if (profilePicUrl) {
-      fieldsToUpdate.push(`profile_pic = $${paramIndex++}`);
-      values.push(profilePicUrl);
-    }
+    const updateData = {};
+    if (name) updateData.name = name;
+    if (username) updateData.username = username;
+    if (profilePicUrl) updateData.profile_pic = profilePicUrl;
 
-    if (fieldsToUpdate.length === 0) {
+    if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ message: "No fields to update provided" });
     }
 
-    values.push(userId); // Add `userId` as the last parameter for the WHERE clause
 
-    const query = `
-        UPDATE users 
-        SET ${fieldsToUpdate.join(", ")}
-        WHERE id = $${paramIndex}
-      `;
+    const { error: updateError } = await supabase
+      .from("users")
+      .update(updateData)
+      .eq("id", userId);
 
-    await connectionPool.query(query, values);
+    if (updateError) {
+      throw updateError;
+    }
 
     return res.status(200).json({ message: "Profile updated successfully" });
   } catch (err) {

@@ -52,7 +52,7 @@ export default function ResetPasswordPage() {
       setIsDialogOpen(false);
 
       const response = await axios.put(
-        `https://wannasingh-blog-server.vercel.app/auth/reset-password`,
+        `${import.meta.env.VITE_API_URL}/auth/reset-password`,
         {
           oldPassword: password,
           newPassword: newPassword,

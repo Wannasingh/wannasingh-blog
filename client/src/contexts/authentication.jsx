@@ -31,7 +31,7 @@ function AuthProvider(props) {
     try {
       setState((prevState) => ({ ...prevState, getUserLoading: true }));
       const response = await axios.get(
-        "https://wannasingh-blog-server.vercel.app/auth/get-user"
+        `${import.meta.env.VITE_API_URL}/auth/get-user`
       );
       setState((prevState) => ({
         ...prevState,
@@ -57,7 +57,7 @@ function AuthProvider(props) {
     try {
       setState((prevState) => ({ ...prevState, loading: true, error: null }));
       const response = await axios.post(
-        "https://wannasingh-blog-server.vercel.app/auth/login",
+        `${import.meta.env.VITE_API_URL}/auth/login`,
         data
       );
       const token = response.data.access_token;
@@ -82,7 +82,7 @@ function AuthProvider(props) {
     try {
       setState((prevState) => ({ ...prevState, loading: true, error: null }));
       await axios.post(
-        "https://wannasingh-blog-server.vercel.app/auth/register",
+        `${import.meta.env.VITE_API_URL}/auth/register`,
         data
       );
       setState((prevState) => ({ ...prevState, loading: false, error: null }));
