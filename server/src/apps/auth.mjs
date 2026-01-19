@@ -87,7 +87,16 @@ authRouter.post("/login", async (req, res) => {
     });
 
     if (error) {
-
+      console.error("Supabase Login Error:", error);
+      
+      // Handle email not confirmed
+      if (error.code === "email_not_confirmed") {
+        return res.status(400).json({
+          error: "Please confirm your email address before logging in. Check your inbox for a confirmation link.",
+        });
+      }
+      
+      // Handle invalid credentials
       if (
         error.code === "invalid_credentials" ||
         error.message.includes("Invalid login credentials")
