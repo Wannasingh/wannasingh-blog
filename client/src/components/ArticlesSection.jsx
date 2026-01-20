@@ -38,8 +38,8 @@ export default function Articles() {
             `${import.meta.env.VITE_API_URL}/categories`
           );
           // Ensure data is an array before setting state
-          const categoriesData = Array.isArray(responseCategories.data) 
-            ? responseCategories.data 
+          const categoriesData = Array.isArray(responseCategories.data)
+            ? responseCategories.data
             : [];
           setCategories(categoriesData);
           setIsFirstTimeRender(false); // Mark the first render logic as done
@@ -61,8 +61,7 @@ export default function Articles() {
       setIsLoading(true); // Start loading
       try {
         const response = await axios.get(
-          `${import.meta.env.VITE_API_URL}/posts?page=${page}&limit=6${
-            category !== "Highlight" ? `&category=${category}` : ""
+          `${import.meta.env.VITE_API_URL}/posts?page=${page}&limit=6${category !== "Highlight" ? `&category=${category}` : ""
           }`
         );
         if (page === 1) {
@@ -187,11 +186,10 @@ export default function Articles() {
                 setPage(1); // Reset page to 1
                 setHasMore(true); // Reset "has more" state
               }}
-              className={`px-5 py-2.5 transition-all duration-200 rounded-full text-sm font-semibold whitespace-nowrap shadow-sm border ${
-                category === "Highlight" 
-                  ? "bg-foreground text-white border-foreground shadow-md scale-105" 
-                  : "bg-white text-foreground border-gray-200 hover:bg-gray-50 hover:shadow-md hover:scale-105 hover:border-gray-300"
-              }`}
+              className={`px-5 py-2.5 transition-all duration-200 rounded-full text-sm font-semibold whitespace-nowrap shadow-sm border ${category === "Highlight"
+                ? "bg-foreground text-white border-foreground shadow-md scale-105"
+                : "bg-white text-foreground border-gray-200 hover:bg-gray-50 hover:shadow-md hover:scale-105 hover:border-gray-300"
+                }`}
             >
               Highlight
             </button>
@@ -205,11 +203,10 @@ export default function Articles() {
                   setPage(1); // Reset page to 1
                   setHasMore(true); // Reset "has more" state
                 }}
-                className={`px-5 py-2.5 transition-all duration-200 rounded-full text-sm font-semibold whitespace-nowrap shadow-sm border ${
-                  category === cat.name 
-                    ? "bg-foreground text-white border-foreground shadow-md scale-105" 
-                    : "bg-white text-foreground border-gray-200 hover:bg-gray-50 hover:shadow-md hover:scale-105 hover:border-gray-300"
-                }`}
+                className={`px-5 py-2.5 transition-all duration-200 rounded-full text-sm font-semibold whitespace-nowrap shadow-sm border ${category === cat.name
+                  ? "bg-foreground text-white border-foreground shadow-md scale-105"
+                  : "bg-white text-foreground border-gray-200 hover:bg-gray-50 hover:shadow-md hover:scale-105 hover:border-gray-300"
+                  }`}
               >
                 {cat.name}
               </button>
@@ -242,9 +239,8 @@ export default function Articles() {
         <div className="text-center mt-20">
           <button
             onClick={handleLoadMore}
-            className={`font-medium ${
-              !isLoading ? "underline hover:text-muted-foreground" : ""
-            }`}
+            className={`font-medium ${!isLoading ? "underline hover:text-muted-foreground" : ""
+              }`}
             disabled={isLoading}
           >
             {isLoading ? (
@@ -264,6 +260,27 @@ export default function Articles() {
 
 function BlogCard({ id, image, category, title, description, author, date }) {
   const navigate = useNavigate();
+  const [authorData, setAuthorData] = useState({
+    name: "Wannasingh K.",
+    profile_pic: authorImage
+  });
+
+  useEffect(() => {
+    // Check if author is an object with user data
+    if (author && typeof author === 'object' && author.name) {
+      setAuthorData({
+        name: author.name,
+        profile_pic: author.profile_pic || authorImage
+      });
+    } else if (typeof author === 'string') {
+      // Fallback for old string format
+      setAuthorData({
+        name: author,
+        profile_pic: authorImage
+      });
+    }
+  }, [author]);
+
   return (
     <div className="flex flex-col gap-4">
       <button
@@ -293,10 +310,10 @@ function BlogCard({ id, image, category, title, description, author, date }) {
         <div className="flex items-center text-sm">
           <img
             className="w-8 h-8 object-cover rounded-full mr-2"
-            src={authorImage}
-            alt={author}
+            src={authorData.profile_pic}
+            alt={authorData.name}
           />
-          <span>{author}</span>
+          <span>{authorData.name}</span>
           <span className="mx-2 text-gray-300">|</span>
           <span>{date}</span>
         </div>

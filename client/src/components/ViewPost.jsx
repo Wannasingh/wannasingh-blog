@@ -9,14 +9,12 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import {
-  Facebook,
-  Linkedin,
-  Twitter,
   SmilePlus,
   Copy,
   Loader2,
   X,
 } from "lucide-react";
+import { FaFacebook, FaLinkedin, FaXTwitter, FaInstagram } from "react-icons/fa6";
 import { Textarea } from "@/components/ui/textarea";
 import authorImage from "../assets/author-image.jpeg";
 import axios from "axios";
@@ -35,6 +33,8 @@ export default function ViewPost() {
   const [comments, setComments] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [author, setAuthor] = useState(null);
+  const [shareCount, setShareCount] = useState(0);
 
   const param = useParams();
   const navigate = useNavigate();
@@ -58,6 +58,21 @@ export default function ViewPost() {
       setDescription(postsResponse.data.description);
       setCategory(postsResponse.data.category);
       setContent(postsResponse.data.content);
+
+      // Get author info
+      if (postsResponse.data.user_id) {
+        try {
+          const authorResponse = await axios.get(
+            `${import.meta.env.VITE_API_URL}/profile/${postsResponse.data.user_id}`
+          );
+          setAuthor(authorResponse.data);
+        } catch (authorError) {
+          console.log("Could not fetch author info:", authorError);
+          // Set default author if fetch fails
+          setAuthor(null);
+        }
+      }
+
       const likesResponse = await axios.get(
         `${import.meta.env.VITE_API_URL}/posts/${param.postId}/likes`
       );
@@ -66,6 +81,11 @@ export default function ViewPost() {
         `${import.meta.env.VITE_API_URL}/posts/${param.postId}/comments`
       );
       setComments(commentsResponse.data);
+
+      // Get share count from localStorage
+      const shares = JSON.parse(localStorage.getItem('shareCount') || '{}');
+      setShareCount(shares[param.postId] || 0);
+
       setIsLoading(false);
     } catch (error) {
       console.log(error);
@@ -109,7 +129,7 @@ export default function ViewPost() {
           </article>
 
           <div className="xl:hidden px-4">
-            <AuthorBio />
+            <AuthorBio author={author} />
           </div>
 
           <Share
@@ -117,6 +137,8 @@ export default function ViewPost() {
             setDialogState={setIsDialogOpen}
             user={user}
             setLikes={setLikes}
+            shareCount={shareCount}
+            setShareCount={setShareCount}
           />
           <Comment
             setDialogState={setIsDialogOpen}
@@ -128,7 +150,7 @@ export default function ViewPost() {
 
         <div className="hidden xl:block xl:w-1/4">
           <div className="sticky top-4">
-            <AuthorBio />
+            <AuthorBio author={author} />
           </div>
         </div>
       </div>
@@ -140,10 +162,19 @@ export default function ViewPost() {
   );
 }
 
-function Share({ likesAmount, setDialogState, user, setLikes }) {
+function Share({ likesAmount, setDialogState, user, setLikes, shareCount, setShareCount }) {
   const shareLink = encodeURI(window.location.href);
+  const shareTitle = encodeURIComponent(document.title);
   const param = useParams();
   const [isLiking, setIsLiking] = useState(false);
+
+  const handleShare = () => {
+    // Increment share count
+    const shares = JSON.parse(localStorage.getItem('shareCount') || '{}');
+    shares[param.postId] = (shares[param.postId] || 0) + 1;
+    localStorage.setItem('shareCount', JSON.stringify(shares));
+    setShareCount(shares[param.postId]);
+  };
 
   const handleLikeClick = async () => {
     if (!user) {
@@ -181,26 +212,26 @@ function Share({ likesAmount, setDialogState, user, setLikes }) {
     }
   };
   return (
-    <div className="md:px-4">
-      <div className="bg-[#EFEEEB] py-4 px-4 md:rounded-sm flex flex-col space-y-4 md:gap-16 md:flex-row md:items-center md:space-y-0 md:justify-between mb-10">
+    <div className="px-4 md:px-4">
+      <div className="bg-[#EFEEEB] py-4 px-4 md:py-6 md:px-6 md:rounded-sm flex flex-col space-y-4 lg:flex-row lg:items-center lg:space-y-0 lg:justify-between mb-10">
         <button
           onClick={handleLikeClick}
           disabled={isLiking}
-          className={`flex items-center justify-center space-x-2 px-11 py-3 rounded-full text-foreground border border-foreground transition-colors group ${
-            isLiking
-              ? "bg-gray-200 cursor-not-allowed text-gray-500 border-gray-300"
-              : "bg-white hover:border-muted-foreground hover:text-muted-foreground"
-          }`}
+          className={`flex items-center justify-center space-x-2 px-8 sm:px-11 py-3 rounded-full text-foreground border border-foreground transition-colors group ${isLiking
+            ? "bg-gray-200 cursor-not-allowed text-gray-500 border-gray-300"
+            : "bg-white hover:border-muted-foreground hover:text-muted-foreground"
+            }`}
         >
           <SmilePlus className="w-5 h-5 text-foreground group-hover:text-muted-foreground transition-colors" />
           <span className="text-foreground group-hover:text-muted-foreground font-medium transition-colors">
             {likesAmount}
           </span>
         </button>
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2 flex-wrap justify-center">
           <button
             onClick={() => {
               navigator.clipboard.writeText(shareLink);
+              handleShare();
               toast.custom((t) => (
                 <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start max-w-md w-full">
                   <div>
@@ -218,7 +249,7 @@ function Share({ likesAmount, setDialogState, user, setLikes }) {
                 </div>
               ));
             }}
-            className="bg-white flex flex-1 items-center justify-center space-x-2 px-11 py-3 rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors group"
+            className="bg-white flex items-center justify-center space-x-2 px-6 sm:px-8 py-3 rounded-full text-foreground border border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors group"
           >
             <Copy className="w-5 h-5 text-foreground transition-colors group-hover:text-muted-foreground" />
             <span className="text-foreground font-medium transition-colors group-hover:text-muted-foreground">
@@ -226,26 +257,46 @@ function Share({ likesAmount, setDialogState, user, setLikes }) {
             </span>
           </button>
           <a
-            href={`https://www.facebook.com/share.php?u=${shareLink}`}
+            href={`https://www.facebook.com/sharer/sharer.php?u=${shareLink}`}
             target="_blank"
+            rel="noopener noreferrer"
+            onClick={handleShare}
             className="bg-white p-3 rounded-full border text-foreground border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors"
           >
-            <Facebook className="h-6 w-6" />
+            <FaFacebook className="h-5 w-5 sm:h-6 sm:w-6" />
           </a>
           <a
             href={`https://www.linkedin.com/sharing/share-offsite/?url=${shareLink}`}
             target="_blank"
+            rel="noopener noreferrer"
+            onClick={handleShare}
             className="bg-white p-3 rounded-full border text-foreground border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors"
           >
-            <Linkedin className="h-6 w-6" />
+            <FaLinkedin className="h-5 w-5 sm:h-6 sm:w-6" />
           </a>
           <a
-            href={`https://www.twitter.com/share?&url=${shareLink}`}
+            href={`https://twitter.com/intent/tweet?url=${shareLink}&text=${shareTitle}`}
             target="_blank"
+            rel="noopener noreferrer"
+            onClick={handleShare}
             className="bg-white p-3 rounded-full border text-foreground border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors"
           >
-            <Twitter className="h-6 w-6" />
+            <FaXTwitter className="h-5 w-5 sm:h-6 sm:w-6" />
           </a>
+          <a
+            href={`https://www.instagram.com/direct/new/?text=${shareTitle}%20${shareLink}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={handleShare}
+            className="bg-white p-3 rounded-full border text-foreground border-foreground hover:border-muted-foreground hover:text-muted-foreground transition-colors"
+          >
+            <FaInstagram className="h-5 w-5 sm:h-6 sm:w-6" />
+          </a>
+          {shareCount > 0 && (
+            <span className="text-xs sm:text-sm text-muted-foreground w-full text-center lg:w-auto lg:ml-2 mt-2 lg:mt-0">
+              Shared {shareCount} {shareCount === 1 ? 'time' : 'times'}
+            </span>
+          )}
         </div>
       </div>
     </div>
@@ -255,7 +306,9 @@ function Share({ likesAmount, setDialogState, user, setLikes }) {
 function Comment({ setDialogState, commentList, setComments, user }) {
   const [commentText, setCommentText] = useState("");
   const [isError, setIsError] = useState(false);
+  const [replyTo, setReplyTo] = useState(null);
   const param = useParams();
+
   const handleSendComment = async (e) => {
     e.preventDefault();
     if (!commentText.trim()) {
@@ -263,17 +316,22 @@ function Comment({ setDialogState, commentList, setComments, user }) {
     } else {
       // Submit the comment
       setIsError(false);
-      setCommentText("");
+      const textToSend = replyTo
+        ? `@${replyTo.name} ${commentText}`
+        : commentText;
+
       await axios.post(
         `${import.meta.env.VITE_API_URL}/posts/${param.postId}/comments`,
         {
-          comment: commentText,
+          comment: textToSend,
         }
       );
       const commentsResponse = await axios.get(
         `${import.meta.env.VITE_API_URL}/posts/${param.postId}/comments`
       );
       setComments(commentsResponse.data);
+      setCommentText("");
+      setReplyTo(null);
       toast.custom((t) => (
         <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start max-w-md w-full">
           <div>
@@ -293,10 +351,31 @@ function Comment({ setDialogState, commentList, setComments, user }) {
     }
   };
 
+  const handleReply = (comment) => {
+    if (!user) {
+      setDialogState(true);
+      return;
+    }
+    setReplyTo(comment);
+    // Scroll to comment box
+    document.querySelector('textarea[placeholder="What are your thoughts?"]')?.focus();
+  };
+
   return (
     <div>
       <div className="space-y-4 px-4 mb-16">
         <h3 className="text-lg font-semibold">Comment</h3>
+        {replyTo && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-gray-100 p-2 rounded">
+            <span>Replying to <strong>{replyTo.name}</strong></span>
+            <button
+              onClick={() => setReplyTo(null)}
+              className="ml-auto text-foreground hover:text-red-500"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
         <form className="space-y-2 relative" onSubmit={handleSendComment}>
           <Textarea
             value={commentText}
@@ -308,9 +387,8 @@ function Comment({ setDialogState, commentList, setComments, user }) {
             }}
             onChange={(e) => setCommentText(e.target.value)}
             placeholder="What are your thoughts?"
-            className={`w-full p-4 h-24 resize-none py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${
-              isError ? "border-red-500" : ""
-            }`}
+            className={`w-full p-4 h-24 resize-none py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${isError ? "border-red-500" : ""
+              }`}
           />
           {isError && (
             <p className="text-red-500 text-sm absolute">
@@ -329,71 +407,160 @@ function Comment({ setDialogState, commentList, setComments, user }) {
       </div>
       <div className="space-y-6 px-4">
         {commentList.map((comment, index) => (
-          <div key={index} className="flex flex-col gap-2 mb-4">
-            <div className="flex space-x-4">
-              <div className="flex-shrink-0">
-                <img
-                  src={comment.profile_pic}
-                  alt={comment.name}
-                  className="rounded-full w-12 h-12 object-cover"
-                />
-              </div>
-              <div className="flex-grow">
-                <div className="flex flex-col items-start justify-between">
-                  <h4 className="font-semibold">{comment.name}</h4>
-                  <span className="text-sm text-gray-500">
-                    {new Date(comment.created_at)
-                      .toLocaleString("en-GB", {
-                        day: "2-digit",
-                        month: "long",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hour12: false,
-                      })
-                      .replace(", ", " at ")}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <p className=" text-gray-600">{comment.comment_text}</p>
-            {index < commentList.length - 1 && (
-              <hr className="border-gray-300 my-4" />
-            )}
-          </div>
+          <CommentItem
+            key={index}
+            comment={comment}
+            index={index}
+            commentList={commentList}
+            user={user}
+            onReply={handleReply}
+            setDialogState={setDialogState}
+          />
         ))}
       </div>
     </div>
   );
 }
 
-function AuthorBio() {
+function CommentItem({ comment, index, commentList, user, onReply, setDialogState }) {
+  const [showCard, setShowCard] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSendMessage = () => {
+    if (!user) {
+      setDialogState(true);
+      return;
+    }
+    navigate(`/messages?userId=${comment.user_id}`);
+  };
+
+  // Don't show message button if it's the current user
+  const isCurrentUser = user?.id === comment.user_id;
+
   return (
-    <div className="bg-[#EFEEEB] rounded-3xl p-6">
-      <div className="flex items-center mb-4">
-        <div className="w-16 h-16 rounded-full overflow-hidden mr-4">
+    <div className="flex flex-col gap-2 mb-4">
+      <div className="flex space-x-3 sm:space-x-4">
+        <div className="flex-shrink-0">
           <img
-            src={authorImage}
-            alt="Wannasingh K."
-            className="object-cover w-16 h-16"
+            src={comment.profile_pic}
+            alt={comment.name}
+            className="rounded-full w-10 h-10 sm:w-12 sm:h-12 object-cover"
           />
         </div>
-        <div>
-          <p className="text-sm">Author</p>
-          <h3 className="text-2xl font-bold">Wannasingh K.</h3>
+        <div className="flex-grow min-w-0">
+          <div className="flex flex-col items-start justify-between">
+            <div className="relative">
+              <h4
+                className="font-semibold cursor-pointer hover:underline text-sm sm:text-base"
+                onMouseEnter={() => setShowCard(true)}
+                onMouseLeave={() => setShowCard(false)}
+              >
+                {comment.name}
+              </h4>
+              {showCard && !isCurrentUser && (
+                <div
+                  className="absolute left-0 top-full mt-2 z-10 bg-white border border-gray-200 rounded-lg shadow-lg p-4 w-64"
+                  onMouseEnter={() => setShowCard(true)}
+                  onMouseLeave={() => setShowCard(false)}
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <img
+                      src={comment.profile_pic}
+                      alt={comment.name}
+                      className="rounded-full w-16 h-16 object-cover"
+                    />
+                    <div>
+                      <h5 className="font-bold">{comment.name}</h5>
+                      <p className="text-sm text-gray-500">@{comment.username}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleSendMessage}
+                    className="w-full px-4 py-2 bg-foreground text-white rounded-full hover:bg-muted-foreground transition-colors text-sm"
+                  >
+                    Send Message
+                  </button>
+                </div>
+              )}
+            </div>
+            <span className="text-xs sm:text-sm text-gray-500">
+              {new Date(comment.created_at)
+                .toLocaleString("en-GB", {
+                  day: "2-digit",
+                  month: "long",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: false,
+                })
+                .replace(", ", " at ")}
+            </span>
+          </div>
+        </div>
+      </div>
+      <p className="text-gray-600 text-sm sm:text-base ml-13 sm:ml-16 break-words">{comment.comment_text}</p>
+      {user && (
+        <button
+          onClick={() => onReply(comment)}
+          className="text-xs sm:text-sm text-muted-foreground hover:text-foreground ml-13 sm:ml-16 text-left font-medium"
+        >
+          Reply
+        </button>
+      )}
+      {index < commentList.length - 1 && (
+        <hr className="border-gray-300 my-4" />
+      )}
+    </div>
+  );
+}
+
+function AuthorBio({ author }) {
+  if (!author) {
+    return (
+      <div className="bg-[#EFEEEB] rounded-2xl sm:rounded-3xl p-4 sm:p-6">
+        <div className="flex items-center mb-4">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden mr-3 sm:mr-4 bg-gray-300 animate-pulse" />
+          <div className="flex-1">
+            <div className="h-3 sm:h-4 bg-gray-300 rounded animate-pulse mb-2 w-16 sm:w-20" />
+            <div className="h-5 sm:h-6 bg-gray-300 rounded animate-pulse w-24 sm:w-32" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-[#EFEEEB] rounded-2xl sm:rounded-3xl p-4 sm:p-6">
+      <div className="flex items-center mb-4">
+        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full overflow-hidden mr-3 sm:mr-4 flex-shrink-0">
+          <img
+            src={author.profile_pic || authorImage}
+            alt={author.name}
+            className="object-cover w-full h-full"
+          />
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs sm:text-sm">Author</p>
+          <h3 className="text-lg sm:text-2xl font-bold truncate">{author.name}</h3>
         </div>
       </div>
       <hr className="border-gray-300 mb-4" />
-      <div className="text-muted-foreground space-y-4">
-        <p>
-          I am a pet enthusiast and freelance writer who specializes in animal
-          behavior and care. With a deep love for cats, I enjoy sharing insights
-          on feline companionship and wellness.
-        </p>
-        <p>
-          When I&apos;m not writing, I spend time volunteering at my local
-          animal shelter, helping cats find loving homes.
-        </p>
+      <div className="text-muted-foreground space-y-3 sm:space-y-4 text-sm sm:text-base">
+        {author.bio ? (
+          <p>{author.bio}</p>
+        ) : (
+          <>
+            <p>
+              I am a pet enthusiast and freelance writer who specializes in animal
+              behavior and care. With a deep love for cats, I enjoy sharing insights
+              on feline companionship and wellness.
+            </p>
+            <p>
+              When I&apos;m not writing, I spend time volunteering at my local
+              animal shelter, helping cats find loving homes.
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
