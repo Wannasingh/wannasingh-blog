@@ -57,7 +57,11 @@ export default function AdminEditArticlePage() {
         const responseCategories = await axios.get(
           `${import.meta.env.VITE_API_URL}/categories`
         );
-        setCategories(responseCategories.data);
+        // Ensure data is an array before setting state
+        const categoriesData = Array.isArray(responseCategories.data) 
+          ? responseCategories.data 
+          : [];
+        setCategories(categoriesData);
         const response = await axios.get(
           `${import.meta.env.VITE_API_URL}/posts/admin/${postId}`
         );
@@ -119,15 +123,20 @@ export default function AdminEditArticlePage() {
         formData.append("status_id", postStatusId);
         formData.append("imageFile", imageFile.file);
 
+        const token = localStorage.getItem("token");
         await axios.put(
           `${import.meta.env.VITE_API_URL}/posts/${postId}`,
           formData,
           {
-            headers: { "Content-Type": "multipart/form-data" },
+            headers: { 
+              "Content-Type": "multipart/form-data",
+              "Authorization": `Bearer ${token}`
+            },
           }
         );
       } else {
         // If the image is not changed, use the old method
+        const token = localStorage.getItem("token");
         await axios.put(
           `${import.meta.env.VITE_API_URL}/posts/${postId}`,
           {
@@ -137,6 +146,11 @@ export default function AdminEditArticlePage() {
             description: post.description,
             content: post.content,
             status_id: postStatusId,
+          },
+          {
+            headers: {
+              "Authorization": `Bearer ${token}`
+            }
           }
         );
       }
@@ -150,9 +164,9 @@ export default function AdminEditArticlePage() {
             </h2>
             <p className="text-sm">
               {postStatusId === 1
-                ? "Your article has been successfully published."
-                : postStatusId === 2
                 ? "Your article has been successfully saved as draft."
+                : postStatusId === 2
+                ? "Your article has been successfully published."
                 : ""}
             </p>
           </div>
@@ -192,8 +206,14 @@ export default function AdminEditArticlePage() {
   const handleDelete = async (postId) => {
     try {
       navigate("/admin/article-management");
+      const token = localStorage.getItem("token");
       await axios.delete(
-        `${import.meta.env.VITE_API_URL}/posts/${postId}`
+        `${import.meta.env.VITE_API_URL}/posts/${postId}`,
+        {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        }
       );
       toast.custom((t) => (
         <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start">

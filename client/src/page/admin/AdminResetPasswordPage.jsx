@@ -13,6 +13,7 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/authentication";
 
 export default function AdminResetPasswordPage() {
   const [password, setPassword] = useState("");
@@ -24,11 +25,12 @@ export default function AdminResetPasswordPage() {
     confirmNewPassword: true,
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { logout } = useAuth();
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const isValidPassword = password.trim() !== "";
-    const isValidNewPassword = newPassword.trim() !== "";
+    const isValidNewPassword = newPassword.trim() !== "" && newPassword.length >= 8;
     const isValidConfirmPassword =
       confirmNewPassword.trim() !== "" && confirmNewPassword === newPassword;
 
@@ -45,10 +47,7 @@ export default function AdminResetPasswordPage() {
 
   const handleResetPassword = async () => {
     try {
-      // Close the dialog
       setIsDialogOpen(false);
-
-      // Make API call to reset the password using JWT interceptor
 
       const response = await axios.put(
         `${import.meta.env.VITE_API_URL}/auth/reset-password`,
@@ -58,15 +57,13 @@ export default function AdminResetPasswordPage() {
         }
       );
 
-      // Handle successful response
       if (response.status === 200) {
         toast.custom((t) => (
           <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start">
             <div>
-              <h2 className="font-bold text-lg mb-1">Success!</h2>
+              <h2 className="font-bold text-lg mb-1">Password Changed!</h2>
               <p className="text-sm">
-                Password reset successful. You can now log in with your new
-                password.
+                Your password has been changed successfully. You will be logged out in 3 seconds. Please log in again with your new password.
               </p>
             </div>
             <button
@@ -77,12 +74,13 @@ export default function AdminResetPasswordPage() {
             </button>
           </div>
         ));
-        setPassword("");
-        setNewPassword("");
-        setConfirmNewPassword("");
+
+        // Logout after 3 seconds for security
+        setTimeout(() => {
+          logout();
+        }, 3000);
       }
     } catch (error) {
-      // Handle errors
       toast.custom((t) => (
         <div className="bg-red-500 text-white p-4 rounded-sm flex justify-between items-start">
           <div>
@@ -104,9 +102,7 @@ export default function AdminResetPasswordPage() {
   };
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Sidebar */}
       <AdminSidebar />
-      {/* Main content */}
       <main className="flex-1 p-8 bg-gray-50 overflow-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-semibold">Reset Password</h2>
@@ -129,9 +125,8 @@ export default function AdminResetPasswordPage() {
               placeholder="Current password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${
-                !valid.password ? "border-red-500" : ""
-              }`}
+              className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${!valid.password ? "border-red-500" : ""
+                }`}
             />
             {!valid.password && (
               <p className="text-red-500 text-xs absolute mt-1">
@@ -152,9 +147,8 @@ export default function AdminResetPasswordPage() {
               placeholder="New password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${
-                !valid.newPassword ? "border-red-500" : ""
-              }`}
+              className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${!valid.newPassword ? "border-red-500" : ""
+                }`}
             />
             {!valid.newPassword && (
               <p className="text-red-500 text-xs absolute mt-1">
@@ -175,9 +169,8 @@ export default function AdminResetPasswordPage() {
               placeholder="Confirm new password"
               value={confirmNewPassword}
               onChange={(e) => setConfirmNewPassword(e.target.value)}
-              className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${
-                !valid.confirmNewPassword ? "border-red-500" : ""
-              }`}
+              className={`mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground ${!valid.confirmNewPassword ? "border-red-500" : ""
+                }`}
             />
             {!valid.confirmNewPassword && (
               <p className="text-red-500 text-xs absolute mt-1">
@@ -203,8 +196,11 @@ function ResetPasswordModal({ dialogState, setDialogState, resetFunction }) {
         <AlertDialogTitle className="text-3xl font-semibold pb-2 text-center">
           Reset password
         </AlertDialogTitle>
-        <AlertDialogDescription className="flex flex-row mb-2 justify-center font-medium text-center text-muted-foreground">
-          Do you want to reset your password?
+        <AlertDialogDescription className="flex flex-col mb-2 justify-center font-medium text-center text-muted-foreground px-4">
+          <p>Do you want to reset your password?</p>
+          <p className="text-sm mt-2 text-orange-500">
+            Note: You will be logged out after changing your password for security reasons.
+          </p>
         </AlertDialogDescription>
         <div className="flex flex-row gap-4">
           <button

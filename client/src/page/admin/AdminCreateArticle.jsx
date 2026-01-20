@@ -41,7 +41,11 @@ export default function AdminCreateArticlePage() {
         const responseCategories = await axios.get(
           `${import.meta.env.VITE_API_URL}/categories`
         );
-        setCategories(responseCategories.data);
+        // Ensure data is an array before setting state
+        const categoriesData = Array.isArray(responseCategories.data) 
+          ? responseCategories.data 
+          : [];
+        setCategories(categoriesData);
       } catch (error) {
         console.error("Error fetching categories data:", error);
         navigate("*");
@@ -82,11 +86,15 @@ export default function AdminCreateArticlePage() {
     formData.append("imageFile", imageFile.file);
 
     try {
+      const token = localStorage.getItem("token");
       await axios.post(
         `${import.meta.env.VITE_API_URL}/posts`,
         formData,
         {
-          headers: { "Content-Type": "multipart/form-data" },
+          headers: { 
+            "Content-Type": "multipart/form-data",
+            "Authorization": `Bearer ${token}`
+          },
         }
       );
 
@@ -98,9 +106,9 @@ export default function AdminCreateArticlePage() {
             </h2>
             <p className="text-sm">
               {postStatusId === 1
-                ? "Your article has been successfully published."
-                : postStatusId === 2
                 ? "Your article has been successfully saved as draft."
+                : postStatusId === 2
+                ? "Your article has been successfully published."
                 : ""}
             </p>
           </div>

@@ -40,7 +40,11 @@ export default function AdminCategoryManagementPage() {
         const responseCategories = await axios.get(
           `${import.meta.env.VITE_API_URL}/categories`
         );
-        setCategories(responseCategories.data);
+        // Ensure data is an array before setting state
+        const categoriesData = Array.isArray(responseCategories.data) 
+          ? responseCategories.data 
+          : [];
+        setCategories(categoriesData);
       } catch (error) {
         console.error("Error fetching categories data:", error);
         navigate("*");
@@ -62,8 +66,14 @@ export default function AdminCategoryManagementPage() {
   const handleDelete = async (categoryId) => {
     try {
       setIsLoading(true);
+      const token = localStorage.getItem("token");
       await axios.delete(
-        `${import.meta.env.VITE_API_URL}/categories/${categoryId}`
+        `${import.meta.env.VITE_API_URL}/categories/${categoryId}`,
+        {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        }
       );
       toast.custom((t) => (
         <div className="bg-green-500 text-white p-4 rounded-sm flex justify-between items-start">

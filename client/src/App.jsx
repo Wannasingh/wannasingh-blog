@@ -8,6 +8,7 @@ import LoginPage from "./page/LoginPage";
 import SignUpSuccessPage from "./page/SignUpSuccessPage";
 import ProfilePage from "./page/ProfilePage";
 import ResetPasswordPage from "./page/ResetPasswordPage";
+import MessagesPage from "./page/MessagesPage";
 import AdminArticleManagementPage from "./page/admin/AdminArticlePage";
 import AdminCategoryManagementPage from "./page/admin/AdminCategoryPage";
 import AdminProfilePage from "./page/admin/AdminProfilePage";
@@ -46,6 +47,23 @@ function App() {
               >
                 <SignUpPage />
               </AuthenticationRoute>
+            }
+          />
+
+          {/* Messages - Allow both user and admin */}
+          <Route
+            path="/messages"
+            element={
+              isAuthenticated ? (
+                <MessagesPage />
+              ) : (
+                <AuthenticationRoute
+                  isLoading={state.getUserLoading}
+                  isAuthenticated={isAuthenticated}
+                >
+                  <MessagesPage />
+                </AuthenticationRoute>
+              )
             }
           />
           <Route

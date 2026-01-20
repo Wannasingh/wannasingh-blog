@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AdminSidebar } from "@/components/AdminWebSection";
 import { useAuth } from "@/contexts/authentication";
@@ -15,6 +16,7 @@ export default function AdminProfilePage() {
     name: "",
     username: "",
     email: "",
+    bio: "",
   });
   const [isSaving, setIsSaving] = useState(false);
   const [imageFile, setImageFile] = useState(null);
@@ -28,6 +30,7 @@ export default function AdminProfilePage() {
           name: state.user.name || "",
           username: state.user.username || "",
           email: state.user.email || "",
+          bio: state.user.bio || "",
         });
       } catch {
         toast.custom((t) => (
@@ -121,6 +124,7 @@ export default function AdminProfilePage() {
       const formData = new FormData();
       formData.append("name", profile.name);
       formData.append("username", profile.username);
+      formData.append("bio", profile.bio);
 
       if (imageFile) {
         formData.append("imageFile", imageFile);
@@ -244,6 +248,21 @@ export default function AdminProfilePage() {
                 disabled
                 className="mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground"
               />
+            </div>
+            <div>
+              <label htmlFor="bio">Bio</label>
+              <Textarea
+                id="bio"
+                name="bio"
+                value={profile.bio}
+                onChange={handleInputChange}
+                placeholder="Tell us about yourself..."
+                className="mt-1 py-3 rounded-sm placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-muted-foreground min-h-[120px]"
+                maxLength={500}
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                {profile.bio?.length || 0}/500 characters
+              </p>
             </div>
           </form>
         </div>

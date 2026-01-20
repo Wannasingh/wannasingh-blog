@@ -9,9 +9,59 @@ const imageFileUpload = multerUpload.fields([
   { name: "imageFile", maxCount: 1 },
 ]);
 
+// Get main author (first admin user) for homepage
+profileRouter.get("/author", async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, name, username, profile_pic, bio")
+      .eq("role", "admin")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ message: "Author not found" });
+    }
+
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      message: "Failed to get author profile",
+      error: err.message,
+    });
+  }
+});
+
+// Get user profile by ID (public)
+profileRouter.get("/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const { data, error } = await supabase
+      .from("users")
+      .select("id, name, username, profile_pic, role, bio")
+      .eq("id", userId)
+      .single();
+
+    if (error || !data) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    return res.status(200).json(data);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      message: "Failed to get user profile",
+      error: err.message,
+    });
+  }
+});
+
 profileRouter.put("/", [imageFileUpload, protectUser], async (req, res) => {
   const { id: userId } = req.user;
-  const { name, username } = req.body;
+  const { name, username, bio } = req.body;
   const file = req.files?.imageFile?.[0];
 
 
@@ -29,6 +79,12 @@ profileRouter.put("/", [imageFileUpload, protectUser], async (req, res) => {
     return res
       .status(400)
       .json({ message: "Username cannot be empty or exceed 50 characters" });
+  }
+
+  if (bio && bio.length > 500) {
+    return res
+      .status(400)
+      .json({ message: "Bio cannot exceed 500 characters" });
   }
 
   let profilePicUrl = null;
@@ -61,6 +117,7 @@ profileRouter.put("/", [imageFileUpload, protectUser], async (req, res) => {
     const updateData = {};
     if (name) updateData.name = name;
     if (username) updateData.username = username;
+    if (bio !== undefined) updateData.bio = bio; // Allow empty string to clear bio
     if (profilePicUrl) updateData.profile_pic = profilePicUrl;
 
     if (Object.keys(updateData).length === 0) {
