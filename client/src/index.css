@@ -60,17 +60,33 @@
 @layer base {
   * {
     @apply border-border;
-    cursor: default;
+    cursor: default !important;
   }
   body {
     @apply bg-background text-foreground;
-    cursor: default;
+    cursor: default !important;
   }
-  input, textarea {
-    cursor: text;
+  /* Only show text cursor in input fields */
+  input:not([type="button"]):not([type="submit"]):not([type="reset"]),
+  textarea,
+  [contenteditable="true"] {
+    cursor: text !important;
   }
-  button, a, [role="button"] {
-    cursor: pointer;
+  /* Show pointer cursor for clickable elements */
+  button,
+  a,
+  [role="button"],
+  [type="button"],
+  [type="submit"],
+  [type="reset"],
+  select,
+  [role="link"],
+  .cursor-pointer {
+    cursor: pointer !important;
+  }
+  /* Ensure no text cursor on regular text */
+  p, span, div, h1, h2, h3, h4, h5, h6, label {
+    cursor: default !important;
   }
 }
 

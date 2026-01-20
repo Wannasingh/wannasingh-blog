@@ -16,6 +16,7 @@ const imageFileUpload = multerUpload.fields([
 postRouter.post("/", [imageFileUpload, protectAdmin], async (req, res) => {
   const newPost = req.body;
   const file = req.files.imageFile[0];
+  const userId = req.user.id; // Get user ID from JWT
 
   const bucketName = "articles";
   const filePath = `posts/${Date.now()}`;
@@ -45,6 +46,7 @@ postRouter.post("/", [imageFileUpload, protectAdmin], async (req, res) => {
         description: newPost.description,
         content: newPost.content,
         status_id: parseInt(newPost.status_id),
+        user_id: userId, // Add user_id
       },
     ]);
 
@@ -75,7 +77,12 @@ postRouter.get("/", async (req, res) => {
 
     let query = supabase
       .from("posts")
-      .select(`*, categories!inner(name), statuses!inner(status)`, { count: "exact" })
+      .select(`
+        *, 
+        categories!inner(name), 
+        statuses!inner(status),
+        users!posts_user_id_fkey(id, name, profile_pic)
+      `, { count: "exact" })
       .eq("status_id", 2);
 
 
@@ -107,6 +114,7 @@ postRouter.get("/", async (req, res) => {
         ...post,
         category: post.categories?.name,
         status: post.statuses?.status,
+        author: post.users || { name: "Wannasingh K.", profile_pic: null },
       })),
     };
 
@@ -349,7 +357,8 @@ postRouter.post("/:postId/comments", protectUser, async (req, res) => {
     });
   }
   try {
-    const { error } = await supabase.from("comments").insert([
+    // Insert comment
+    const { error: commentError } = await supabase.from("comments").insert([
       {
         post_id: postIdFromClient,
         user_id: userId,
@@ -357,7 +366,26 @@ postRouter.post("/:postId/comments", protectUser, async (req, res) => {
       },
     ]);
 
-    if (error) throw error;
+    if (commentError) throw commentError;
+
+    // Get post author to create notification
+    const { data: postData, error: postError } = await supabase
+      .from("posts")
+      .select("user_id")
+      .eq("id", postIdFromClient)
+      .single();
+
+    if (!postError && postData && postData.user_id !== userId) {
+      // Only create notification if commenter is not the post author
+      await supabase.from("notifications").insert([
+        {
+          user_id: userId,
+          post_id: postIdFromClient,
+          type: "comment",
+          content: comment.substring(0, 100), // Store first 100 chars
+        },
+      ]);
+    }
 
     return res.status(201).json({ message: "Created comment successfully" });
   } catch (err) {
@@ -394,14 +422,34 @@ postRouter.post("/:postId/likes", protectUser, async (req, res) => {
   const postIdFromClient = req.params.postId;
   const userId = req.user.id;
   try {
-    const { error } = await supabase.from("likes").insert([
+    // Insert like
+    const { error: likeError } = await supabase.from("likes").insert([
       {
         post_id: postIdFromClient,
         user_id: userId,
       },
     ]);
 
-    if (error) throw error;
+    if (likeError) throw likeError;
+
+    // Get post author to create notification
+    const { data: postData, error: postError } = await supabase
+      .from("posts")
+      .select("user_id")
+      .eq("id", postIdFromClient)
+      .single();
+
+    if (!postError && postData && postData.user_id !== userId) {
+      // Only create notification if liker is not the post author
+      await supabase.from("notifications").insert([
+        {
+          user_id: userId,
+          post_id: postIdFromClient,
+          type: "like",
+          content: null,
+        },
+      ]);
+    }
 
     return res.status(201).json({ message: "Created like successfully" });
   } catch (err) {

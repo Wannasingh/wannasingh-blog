@@ -1,5 +1,5 @@
 import authorImage from "../assets/author-image.jpeg";
-import { Menu } from "lucide-react";
+import { Menu, MessageCircle } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,10 +22,33 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/authentication";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useState, useEffect } from "react";
+import axios from "axios";
 
 export function NavBar() {
   const navigate = useNavigate();
   const { isAuthenticated, state, logout } = useAuth();
+  const [unreadMessages, setUnreadMessages] = useState(0);
+
+  useEffect(() => {
+    if (isAuthenticated && state.user) {
+      fetchUnreadMessages();
+      // Poll every 3 seconds for faster updates
+      const interval = setInterval(fetchUnreadMessages, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, state.user]);
+
+  const fetchUnreadMessages = async () => {
+    try {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/messages/unread/count`
+      );
+      setUnreadMessages(response.data.count || 0);
+    } catch (error) {
+      console.error("Error fetching unread messages:", error);
+    }
+  };
 
   return (
     <nav className="flex items-center justify-between py-4 px-4 md:px-8 bg-background border-b border-muted">
@@ -56,10 +79,18 @@ export function NavBar() {
         </div>
       ) : (
         <div className="hidden sm:flex items-center space-x-4">
-          {/* Optional Requirement (Notification) */}
-          {/* <button className="ml-auto p-3.5 rounded-full border border-[#EFEEEB] bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 text-foreground hover:bg-[#EFEEEB] hover:text-muted-foreground cursor-pointer transition-colors">
-            <Bell className="h-4 w-4" />
-          </button> */}
+          {/* Message Icon */}
+          <button
+            onClick={() => navigate("/messages")}
+            className="relative p-3.5 rounded-full border border-[#EFEEEB] bg-muted focus:outline-none text-foreground hover:bg-[#EFEEEB] hover:text-muted-foreground cursor-pointer transition-colors"
+          >
+            <MessageCircle className="h-4 w-4" />
+            {unreadMessages > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                {unreadMessages > 9 ? "9+" : unreadMessages}
+              </span>
+            )}
+          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center space-x-2 rounded-md text-sm font-medium text-foreground hover:text-muted-foreground focus:outline-none">
@@ -168,9 +199,17 @@ export function NavBar() {
                   <span className="ml-3 text-base font-medium text-foreground">
                     {state.user.name}
                   </span>
-                  {/* Optional Requirement (Notification) */}
-                  <button className="ml-auto p-3.5 rounded-full border border-[#EFEEEB] bg-muted focus:outline-none focus:ring-2 focus:ring-offset-2 text-foreground hover:bg-[#EFEEEB] hover:text-muted-foreground cursor-pointer transition-colors">
-                    <Bell className="h-4 w-4" />
+                  {/* Message Icon Mobile */}
+                  <button
+                    onClick={() => navigate("/messages")}
+                    className="ml-auto relative p-3.5 rounded-full border border-[#EFEEEB] bg-muted focus:outline-none text-foreground hover:bg-[#EFEEEB] hover:text-muted-foreground cursor-pointer transition-colors"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    {unreadMessages > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                        {unreadMessages > 9 ? "9+" : unreadMessages}
+                      </span>
+                    )}
                   </button>
                 </div>
                 <a
@@ -234,6 +273,61 @@ export function NavBar() {
 }
 
 export function HeroSection() {
+  const [author, setAuthor] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAuthor();
+  }, []);
+
+  const fetchAuthor = async () => {
+    try {
+      // Fetch the first admin user as the main author
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL}/profile/author`
+      );
+      setAuthor(response.data);
+    } catch (error) {
+      console.error("Error fetching author:", error);
+      // Use default data if fetch fails
+      setAuthor({
+        name: "Wannasingh K.",
+        profile_pic: authorImage,
+        bio: "I am a pet enthusiast and freelance writer who specializes in animal behavior and care. With a deep love for cats, I enjoy sharing insights on feline companionship and wellness."
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <main className="container md:px-8 px-4 py-8 lg:py-16 mx-auto">
+        <div className="flex flex-col lg:flex-row items-center">
+          <div className="lg:w-1/3 mb-8 lg:mb-0 lg:pr-8">
+            <h1 className="text-4xl lg:text-5xl font-bold mb-4">
+              Stay <br className="hidden lg:block" />
+              Informed, <br />
+              Stay Inspired,
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              Discover a World of Knowledge at Your Fingertips. Your Daily Dose of
+              Inspiration and Information.
+            </p>
+          </div>
+          <div className="h-[530px] bg-gray-200 rounded-lg shadow-lg lg:w-1/3 mx-4 mb-8 lg:mb-0 animate-pulse" />
+          <div className="lg:w-1/3 lg:pl-8">
+            <div className="h-6 bg-gray-200 rounded w-24 mb-2 animate-pulse" />
+            <div className="h-8 bg-gray-200 rounded w-48 mb-4 animate-pulse" />
+            <div className="h-4 bg-gray-200 rounded w-full mb-2 animate-pulse" />
+            <div className="h-4 bg-gray-200 rounded w-full mb-2 animate-pulse" />
+            <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse" />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="container md:px-8 px-4 py-8 lg:py-16 mx-auto">
       <div className="flex flex-col lg:flex-row items-center">
@@ -249,22 +343,28 @@ export function HeroSection() {
           </p>
         </div>
         <img
-          src={authorImage}
-          alt="Person with a cat"
+          src={author?.profile_pic || authorImage}
+          alt={author?.name || "Author"}
           className="h-[530px] object-cover rounded-lg shadow-lg lg:w-1/3 mx-4 mb-8 lg:mb-0"
         />
         <div className="lg:w-1/3 lg:pl-8">
           <h2 className="text-xl font-semibold mb-2">-Author</h2>
-          <h3 className="text-2xl font-bold mb-4">Wannasingh K.</h3>
-          <p className="text-muted-foreground mb-4">
-            I am a pet enthusiast and freelance writer who specializes in animal
-            behavior and care. With a deep love for cats, I enjoy sharing
-            insights on feline companionship and wellness.
-          </p>
-          <p className="text-muted-foreground">
-            When I&apos;m not writing, I spend time volunteering at my local
-            animal shelter, helping cats find loving homes.
-          </p>
+          <h3 className="text-2xl font-bold mb-4">{author?.name || "Wannasingh K."}</h3>
+          {author?.bio ? (
+            <p className="text-muted-foreground">{author.bio}</p>
+          ) : (
+            <>
+              <p className="text-muted-foreground mb-4">
+                I am a pet enthusiast and freelance writer who specializes in animal
+                behavior and care. With a deep love for cats, I enjoy sharing
+                insights on feline companionship and wellness.
+              </p>
+              <p className="text-muted-foreground">
+                When I&apos;m not writing, I spend time volunteering at my local
+                animal shelter, helping cats find loving homes.
+              </p>
+            </>
+          )}
         </div>
       </div>
     </main>

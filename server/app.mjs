@@ -5,6 +5,8 @@ import postRouter from "./src/apps/postRouter.mjs";
 import categoryRouter from "./src/apps/categoryRouter.mjs";
 import authRouter from "./src/apps/auth.mjs";
 import profileRouter from "./src/apps/profileRouter.mjs";
+import notificationRouter from "./src/apps/notificationRouter.mjs";
+import messageRouter from "./src/apps/messageRouter.mjs";
 
 const app = express();
 const port = process.env.PORT || 4001;
@@ -20,6 +22,8 @@ app.use("/posts", postRouter);
 app.use("/categories", categoryRouter);
 app.use("/auth", authRouter);
 app.use("/profile", profileRouter);
+app.use("/notifications", notificationRouter);
+app.use("/messages", messageRouter);
 
 // For local development
 if (process.env.NODE_ENV !== 'production') {
