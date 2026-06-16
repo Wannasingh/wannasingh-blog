@@ -28,7 +28,7 @@ pipeline {
     PRODUCTION_URL   = "https://blog.wannasingh.dev"
 
     // Node.js Setup
-    NODE_VERSION     = "18"
+    NODE_VERSION     = "22"
     
     // Shared Jenkins volume name on the host VM
     JENKINS_VOLUME   = "wannasingh-portfolios_jenkins_data"
@@ -98,6 +98,12 @@ pipeline {
 
     // ── Stage 3: Install Dependencies ────────────────────────────────────────
     stage("Install Dependencies") {
+      agent {
+        docker {
+          image "node:22-alpine"
+          reuseNode true
+        }
+      }
       steps {
         echo "⚙️ Installing project dependencies..."
         sh """
@@ -113,6 +119,12 @@ pipeline {
     stage("Parallel Build & Unit Test") {
       parallel {
         stage("Backend: Test & Lint") {
+          agent {
+            docker {
+              image "node:22-alpine"
+              reuseNode true
+            }
+          }
           steps {
             echo "⚙️ Running Backend Linters & Tests..."
             sh """
@@ -122,6 +134,12 @@ pipeline {
           }
         }
         stage("Frontend: Build & Lint") {
+          agent {
+            docker {
+              image "node:22-alpine"
+              reuseNode true
+            }
+          }
           steps {
             echo "⚙️ Running Frontend Linting & Build..."
             sh """
@@ -167,6 +185,12 @@ pipeline {
           }
         }
         stage("Dependency Check / SCA") {
+          agent {
+            docker {
+              image "node:22-alpine"
+              reuseNode true
+            }
+          }
           steps {
             echo "🔍 Running Software Composition Analysis (SCA)..."
             sh """
