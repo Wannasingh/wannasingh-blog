@@ -1,20 +1,16 @@
 import express from "express";
-import supabase from "../utils/db.mjs";
+import db from "../utils/db.mjs";
 import protectAdmin from "../middleware/protectAdmin.mjs";
 
 const categoryRouter = express.Router();
 
 categoryRouter.get("/", async (req, res) => {
   try {
-    const { data: categories, error } = await supabase
-      .from("categories")
-      .select("*")
-      .order("id");
-
-    if (error) {
-      throw error;
-    }
-
+    const result = await db.execute("SELECT id, name FROM categories ORDER BY id");
+    const categories = result.rows.map(row => ({
+      id: row.ID,
+      name: row.NAME
+    }));
     return res.status(200).json(categories);
   } catch (err) {
     console.error(err);
@@ -23,19 +19,19 @@ categoryRouter.get("/", async (req, res) => {
 });
 
 categoryRouter.get("/:categoryId", async (req, res) => {
-  const { id } = req.params;
+  const { categoryId } = req.params;
   try {
-    const { data: category, error } = await supabase
-      .from("categories")
-      .select("*")
-      .eq("id", id)
-      .single();
-
-    if (error || !category) {
+    const result = await db.execute("SELECT id, name FROM categories WHERE id = :id", { id: parseInt(categoryId) });
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: "Category not found" });
     }
-    return res.json(category);
-  } catch {
+    const category = result.rows[0];
+    return res.json({
+      id: category.ID,
+      name: category.NAME
+    });
+  } catch (err) {
+    console.error(err);
     return res.status(500).json({ error: "Failed to fetch category" });
   }
 });
@@ -43,12 +39,10 @@ categoryRouter.get("/:categoryId", async (req, res) => {
 categoryRouter.post("/", protectAdmin, async (req, res) => {
   const { name } = req.body;
   try {
-    const { error } = await supabase.from("categories").insert([{ name }]);
-    if (error) {
-      throw error;
-    }
+    await db.execute("INSERT INTO categories (name) VALUES (:name)", { name });
     return res.status(201).json({ message: "Created category successfully" });
-  } catch {
+  } catch (err) {
+    console.error(err);
     return res.status(500).json({ error: "Failed to create category" });
   }
 });
@@ -57,41 +51,27 @@ categoryRouter.put("/:id", protectAdmin, async (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
   try {
-    const { data, error } = await supabase
-      .from("categories")
-      .update({ name })
-      .eq("id", id)
-      .select();
-
-    if (error) {
-      throw error;
-    }
-    if (data.length === 0) {
+    const result = await db.execute("UPDATE categories SET name = :name WHERE id = :id", { name, id: parseInt(id) });
+    if (result.rowsAffected === 0) {
       return res.status(404).json({ error: "Category not found" });
     }
     return res.status(201).json({ message: "Updated category successfully" });
-  } catch {
+  } catch (err) {
+    console.error(err);
     return res.status(500).json({ error: "Failed to update category" });
   }
 });
 
 categoryRouter.delete("/:categoryId", protectAdmin, async (req, res) => {
-  const { id } = req.params;
+  const { categoryId } = req.params;
   try {
-    const { data, error } = await supabase
-      .from("categories")
-      .delete()
-      .eq("id", id)
-      .select();
-
-    if (error) {
-      throw error;
-    }
-    if (data.length === 0) {
+    const result = await db.execute("DELETE FROM categories WHERE id = :id", { id: parseInt(categoryId) });
+    if (result.rowsAffected === 0) {
       return res.status(404).json({ error: "Category not found" });
     }
     return res.json({ message: "Deleted category successfully" });
-  } catch {
+  } catch (err) {
+    console.error(err);
     return res.status(500).json({ error: "Failed to delete category" });
   }
 });

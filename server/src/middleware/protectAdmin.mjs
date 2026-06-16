@@ -1,5 +1,5 @@
-import supabase from "../utils/db.mjs";
-
+import jwt from "jsonwebtoken";
+import db from "../utils/db.mjs";
 
 const protectAdmin = async (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
@@ -9,43 +9,30 @@ const protectAdmin = async (req, res, next) => {
   }
 
   try {
-
-    const { data: authData, error: authError } = await supabase.auth.getUser(
-      token
-    );
-
-    if (authError || !authData.user) {
-      return res.status(401).json({ error: "Unauthorized: Invalid token" });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "supersecretjwtkey");
+    
+    // Select user from Oracle
+    const result = await db.execute("SELECT id, username, name, role FROM users WHERE id = :id", { id: decoded.id });
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: "Unauthorized: User not found" });
     }
+    const user = result.rows[0];
 
-
-    const supabaseUserId = authData.user.id;
-
-
-    const { data: userRole, error: dbError } = await supabase
-      .from("users")
-      .select("role")
-      .eq("id", supabaseUserId)
-      .single();
-
-    if (dbError || !userRole) {
-      return res.status(404).json({ error: "User role not found" });
-    }
-
-
-    req.user = { ...authData.user, role: userRole.role };
-
+    req.user = {
+      id: user.ID,
+      username: user.USERNAME,
+      name: user.NAME,
+      role: user.ROLE
+    };
 
     if (req.user.role !== "admin") {
-      return res
-        .status(403)
-        .json({ error: "Forbidden: You do not have admin access" });
+      return res.status(403).json({ error: "Forbidden: You do not have admin access" });
     }
-
 
     next();
   } catch (err) {
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Admin auth middleware error:", err);
+    res.status(401).json({ error: "Unauthorized: Invalid or expired token" });
   }
 };
 

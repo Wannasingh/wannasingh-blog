@@ -50,6 +50,7 @@ END;
 CREATE TABLE users (
     id           VARCHAR2(36) PRIMARY KEY,
     username     VARCHAR2(50) UNIQUE NOT NULL,
+    email        VARCHAR2(100) UNIQUE NOT NULL,
     name         VARCHAR2(100) NOT NULL,
     password     VARCHAR2(255) NOT NULL,
     role         VARCHAR2(20) DEFAULT 'user' NOT NULL,
@@ -88,7 +89,7 @@ CREATE TABLE posts (
     content      CLOB NOT NULL,
     status_id    NUMBER DEFAULT 1 NOT NULL,
     user_id      VARCHAR2(36) NOT NULL,
-    date         TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    "DATE"       TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL,
     CONSTRAINT fk_posts_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
     CONSTRAINT fk_posts_status FOREIGN KEY (status_id) REFERENCES statuses(id),
     CONSTRAINT fk_posts_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

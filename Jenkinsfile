@@ -368,16 +368,20 @@ pipeline {
         }
         
         echo "🔬 Running Production Smoke Tests..."
-        sh """
-          sleep 10
-          STATUS_CODE=\$(curl -s -k -o /dev/null -w "%{http_code}" http://\${TARGET_IP}:8081 || echo "000")
-          if [ "\$STATUS_CODE" -eq 200 ] || [ "\$STATUS_CODE" -eq 301 ] || [ "\$STATUS_CODE" -eq 302 ]; then
-            echo "✅ Smoke test passed! Production VM port 8081 is healthy."
-          else
-            echo "❌ Smoke test failed! Status: \$STATUS_CODE"
-            exit 1
-          fi
-        """
+        withCredentials([sshUserPrivateKey(credentialsId: 'apps-ssh-key', keyFileVariable: 'APPS_KEY', usernameVariable: 'APPS_USER')]) {
+          sh """
+            ssh -i \$APPS_KEY -o StrictHostKeyChecking=no \$APPS_USER@${TARGET_IP} '
+              sleep 10
+              STATUS_CODE=\$(curl -s -k -o /dev/null -w "%{http_code}" http://localhost:8081 || echo "000")
+              if [ "\$STATUS_CODE" -eq 200 ] || [ "\$STATUS_CODE" -eq 301 ] || [ "\$STATUS_CODE" -eq 302 ]; then
+                echo "✅ Smoke test passed! Production VM port 8081 is healthy."
+              else
+                echo "❌ Smoke test failed! Status: \$STATUS_CODE"
+                exit 1
+              fi
+            '
+          """
+        }
         script {
           currentBuild.description = "Production: <a href='${PRODUCTION_URL}' target='_blank'>${PRODUCTION_URL}</a>"
         }
