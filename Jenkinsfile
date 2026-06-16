@@ -9,6 +9,10 @@ pipeline {
     label "docker"
   }
 
+  tools {
+    nodejs "Node22"
+  }
+
   // ── Environment & Credentials ──────────────────────────────────────────────
   environment {
     // Registry Target
