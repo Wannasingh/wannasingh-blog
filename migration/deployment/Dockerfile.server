@@ -4,14 +4,8 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Install Bash, wget, unzip and download official HashiCorp Vault CLI binary matching CPU architecture
-RUN apk add --no-cache bash wget unzip ca-certificates && \
-    ARCH=$(uname -m) && \
-    if [ "$ARCH" = "x86_64" ]; then VAULT_ARCH="amd64"; else VAULT_ARCH="arm64"; fi && \
-    wget https://releases.hashicorp.com/vault/1.15.4/vault_1.15.4_linux_${VAULT_ARCH}.zip && \
-    unzip vault_1.15.4_linux_${VAULT_ARCH}.zip && \
-    mv vault /usr/local/bin/ && \
-    rm vault_1.15.4_linux_${VAULT_ARCH}.zip
+# Install standard dependencies (excluding Vault CLI)
+RUN apk add --no-cache bash ca-certificates
 
 # Copy package descriptors and install production dependencies
 COPY server/package*.json ./
@@ -23,10 +17,5 @@ COPY server/ ./
 # Expose backend port
 EXPOSE 4001
 
-# Copy Vault initialization script and make it executable
-COPY migration/vault/vault-env.sh /app/vault-env.sh
-RUN chmod +x /app/vault-env.sh
-
-# The entrypoint launches Vault injection first, then executes node app.mjs
-ENTRYPOINT ["/bin/bash", "/app/vault-env.sh"]
+# Start server directly
 CMD ["node", "app.mjs"]

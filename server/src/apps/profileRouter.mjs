@@ -1,7 +1,9 @@
 import { Router } from "express";
-import supabase from "../utils/db.mjs";
-import protectUser from "../middleware/protectUser.mjs";
+import db from "./db_oracle.mjs";
+import protectUser from "../../server/src/middleware/protectUser.mjs";
 import multer from "multer";
+import fs from "fs/promises";
+import path from "path";
 
 const profileRouter = Router();
 const multerUpload = multer({ storage: multer.memoryStorage() });
@@ -9,22 +11,33 @@ const imageFileUpload = multerUpload.fields([
   { name: "imageFile", maxCount: 1 },
 ]);
 
+const UPLOADS_DIR = process.env.UPLOADS_DIR || "/var/www/uploads/profiles";
+
 // Get main author (first admin user) for homepage
 profileRouter.get("/author", async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from("users")
-      .select("id, name, username, profile_pic, bio")
-      .eq("role", "admin")
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .single();
+    const querySql = `
+      SELECT id, name, username, profile_pic, bio 
+      FROM users 
+      WHERE role = 'admin' 
+      ORDER BY created_at ASC 
+      OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY
+    `;
 
-    if (error || !data) {
+    const result = await db.execute(querySql);
+    
+    if (result.rows.length === 0) {
       return res.status(404).json({ message: "Author not found" });
     }
 
-    return res.status(200).json(data);
+    const author = result.rows[0];
+    return res.status(200).json({
+      id: author.ID,
+      name: author.NAME,
+      username: author.USERNAME,
+      profile_pic: author.PROFILE_PIC,
+      bio: author.BIO
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({
@@ -39,17 +52,27 @@ profileRouter.get("/:userId", async (req, res) => {
   const { userId } = req.params;
 
   try {
-    const { data, error } = await supabase
-      .from("users")
-      .select("id, name, username, profile_pic, role, bio")
-      .eq("id", userId)
-      .single();
+    const querySql = `
+      SELECT id, name, username, profile_pic, role, bio 
+      FROM users 
+      WHERE id = :userId
+    `;
 
-    if (error || !data) {
+    const result = await db.execute(querySql, { userId });
+    
+    if (result.rows.length === 0) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    return res.status(200).json(data);
+    const user = result.rows[0];
+    return res.status(200).json({
+      id: user.ID,
+      name: user.NAME,
+      username: user.USERNAME,
+      profile_pic: user.PROFILE_PIC,
+      role: user.ROLE,
+      bio: user.BIO
+    });
   } catch (err) {
     console.error(err);
     return res.status(500).json({
@@ -63,7 +86,6 @@ profileRouter.put("/", [imageFileUpload, protectUser], async (req, res) => {
   const { id: userId } = req.user;
   const { name, username, bio } = req.body;
   const file = req.files?.imageFile?.[0];
-
 
   if (!userId) {
     return res.status(401).json({ message: "Unauthorized access" });
@@ -91,47 +113,48 @@ profileRouter.put("/", [imageFileUpload, protectUser], async (req, res) => {
 
   try {
     if (file) {
-      const bucketName = "profiles";
-      const filePath = `profiles/${userId}-${Date.now()}`;
-
-      const { data, error } = await supabase.storage
-        .from(bucketName)
-        .upload(filePath, file.buffer, {
-          contentType: file.mimetype,
-          upsert: false,
-        });
-
-      if (error) {
-        console.error("Upload Error:", error);
-        throw new Error("Failed to upload profile picture to storage");
-      }
-
-
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from(bucketName).getPublicUrl(data.path);
-      profilePicUrl = publicUrl;
+      await fs.mkdir(UPLOADS_DIR, { recursive: true });
+      const filename = `profile-${userId}-${Date.now()}${path.extname(file.originalname)}`;
+      const localFilePath = path.join(UPLOADS_DIR, filename);
+      await fs.writeFile(localFilePath, file.buffer);
+      profilePicUrl = `/uploads/profiles/${filename}`;
     }
 
+    // Dynamic SQL update builder for Oracle
+    const updateFields = [];
+    const binds = { userId };
 
-    const updateData = {};
-    if (name) updateData.name = name;
-    if (username) updateData.username = username;
-    if (bio !== undefined) updateData.bio = bio; // Allow empty string to clear bio
-    if (profilePicUrl) updateData.profile_pic = profilePicUrl;
+    if (name) {
+      updateFields.push("name = :name");
+      binds.name = name;
+    }
+    if (username) {
+      updateFields.push("username = :username");
+      binds.username = username;
+    }
+    if (bio !== undefined) {
+      updateFields.push("bio = :bio");
+      binds.bio = bio;
+    }
+    if (profilePicUrl) {
+      updateFields.push("profile_pic = :profilePic");
+      binds.profilePic = profilePicUrl;
+    }
 
-    if (Object.keys(updateData).length === 0) {
+    if (updateFields.length === 0) {
       return res.status(400).json({ message: "No fields to update provided" });
     }
 
+    const updateSql = `
+      UPDATE users 
+      SET ${updateFields.join(", ")}
+      WHERE id = :userId
+    `;
 
-    const { error: updateError } = await supabase
-      .from("users")
-      .update(updateData)
-      .eq("id", userId);
+    const result = await db.execute(updateSql, binds);
 
-    if (updateError) {
-      throw updateError;
+    if (result.rowsAffected === 0) {
+      return res.status(404).json({ message: "User profile not found to update" });
     }
 
     return res.status(200).json({ message: "Profile updated successfully" });

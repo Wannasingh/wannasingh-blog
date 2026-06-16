@@ -1,5 +1,5 @@
 import { Router } from "express";
-import supabase from "../utils/db.mjs";
+import db from "../utils/db.mjs";
 import protectAdmin from "../middleware/protectAdmin.mjs";
 
 const notificationRouter = Router();
@@ -10,55 +10,30 @@ notificationRouter.get("/", protectAdmin, async (req, res) => {
     const adminId = req.user.id;
     console.log('Admin ID:', adminId); // Debug log
 
-    // First get all post IDs created by this admin
-    const { data: adminPosts, error: postsError } = await supabase
-      .from("posts")
-      .select("id")
-      .eq("user_id", adminId);
+    const querySql = `
+      SELECT n.id, n.type, n.post_id, n.content, n.is_read, n.created_at,
+             u.name AS user_name, u.profile_pic AS user_avatar,
+             p.title AS article_title
+      FROM notifications n
+      JOIN posts p ON n.post_id = p.id
+      JOIN users u ON n.user_id = u.id
+      WHERE p.user_id = :adminId
+      ORDER BY n.created_at DESC
+      OFFSET 0 ROWS FETCH NEXT 50 ROWS ONLY
+    `;
 
-    console.log('Admin Posts:', adminPosts); // Debug log
+    const result = await db.execute(querySql, { adminId });
 
-    if (postsError) {
-      console.error('Posts Error:', postsError);
-      throw postsError;
-    }
-
-    const postIds = adminPosts.map(post => post.id);
-    console.log('Post IDs:', postIds); // Debug log
-
-    if (postIds.length === 0) {
-      return res.status(200).json([]);
-    }
-
-    // Get notifications for those posts
-    const { data, error } = await supabase
-      .from("notifications")
-      .select(`
-        *,
-        users!notifications_user_id_fkey(name, profile_pic),
-        posts!notifications_post_id_fkey(title)
-      `)
-      .in("post_id", postIds)
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    console.log('Notifications:', data); // Debug log
-
-    if (error) {
-      console.error('Notifications Error:', error);
-      throw error;
-    }
-
-    const formattedData = data.map((notification) => ({
-      id: notification.id,
-      type: notification.type,
-      user_name: notification.users?.name,
-      user_avatar: notification.users?.profile_pic,
-      article_title: notification.posts?.title,
-      post_id: notification.post_id,
-      content: notification.content,
-      created_at: notification.created_at,
-      is_read: notification.is_read,
+    const formattedData = result.rows.map((row) => ({
+      id: row.ID,
+      type: row.TYPE,
+      user_name: row.USER_NAME,
+      user_avatar: row.USER_AVATAR,
+      article_title: row.ARTICLE_TITLE,
+      post_id: row.POST_ID,
+      content: row.CONTENT,
+      created_at: row.CREATED_AT,
+      is_read: row.IS_READ === "Y",
     }));
 
     return res.status(200).json(formattedData);
@@ -76,29 +51,16 @@ notificationRouter.get("/unread-count", protectAdmin, async (req, res) => {
   try {
     const adminId = req.user.id;
 
-    // First get all post IDs created by this admin
-    const { data: adminPosts, error: postsError } = await supabase
-      .from("posts")
-      .select("id")
-      .eq("user_id", adminId);
+    const querySql = `
+      SELECT COUNT(*) AS count
+      FROM notifications n
+      JOIN posts p ON n.post_id = p.id
+      WHERE p.user_id = :adminId AND n.is_read = 'N'
+    `;
+    const result = await db.execute(querySql, { adminId });
+    const count = result.rows[0]?.COUNT || 0;
 
-    if (postsError) throw postsError;
-
-    const postIds = adminPosts.map(post => post.id);
-
-    if (postIds.length === 0) {
-      return res.status(200).json({ count: 0 });
-    }
-
-    const { count, error } = await supabase
-      .from("notifications")
-      .select("*", { count: "exact", head: true })
-      .in("post_id", postIds)
-      .eq("is_read", false);
-
-    if (error) throw error;
-
-    return res.status(200).json({ count: count || 0 });
+    return res.status(200).json({ count });
   } catch (err) {
     console.error(err);
     return res.status(200).json({ count: 0 });
@@ -110,12 +72,12 @@ notificationRouter.put("/:notificationId/read", protectAdmin, async (req, res) =
   try {
     const notificationId = req.params.notificationId;
 
-    const { error } = await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .eq("id", notificationId);
-
-    if (error) throw error;
+    const updateSql = `
+      UPDATE notifications
+      SET is_read = 'Y'
+      WHERE id = :notificationId
+    `;
+    await db.execute(updateSql, { notificationId: parseInt(notificationId) });
 
     return res.status(200).json({ message: "Notification marked as read" });
   } catch (err) {
@@ -131,27 +93,13 @@ notificationRouter.put("/read-all", protectAdmin, async (req, res) => {
   try {
     const adminId = req.user.id;
 
-    // First get all post IDs created by this admin
-    const { data: adminPosts, error: postsError } = await supabase
-      .from("posts")
-      .select("id")
-      .eq("user_id", adminId);
-
-    if (postsError) throw postsError;
-
-    const postIds = adminPosts.map(post => post.id);
-
-    if (postIds.length === 0) {
-      return res.status(200).json({ message: "No notifications to update" });
-    }
-
-    const { error } = await supabase
-      .from("notifications")
-      .update({ is_read: true })
-      .in("post_id", postIds)
-      .eq("is_read", false);
-
-    if (error) throw error;
+    const updateSql = `
+      UPDATE notifications n
+      SET n.is_read = 'Y'
+      WHERE n.is_read = 'N'
+        AND n.post_id IN (SELECT p.id FROM posts p WHERE p.user_id = :adminId)
+    `;
+    await db.execute(updateSql, { adminId });
 
     return res.status(200).json({ message: "All notifications marked as read" });
   } catch (err) {

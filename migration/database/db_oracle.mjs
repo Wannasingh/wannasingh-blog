@@ -1,8 +1,5 @@
 import oracledb from "oracledb";
 
-// Enable Thin mode by default (pure JS, no Oracle Client binaries needed)
-oracledb.initOracleClient({}); 
-
 // Force results to be returned as JS objects instead of arrays
 oracledb.outFormat = oracledb.OUT_FORMAT_OBJECT;
 oracledb.autoCommit = true;
@@ -19,6 +16,9 @@ export async function initializePool() {
         user: process.env.DB_USER,
         password: process.env.DB_PASSWORD,
         connectString: process.env.DB_CONNECTION_STRING, // host:port/service_name
+        walletLocation: process.env.TNS_ADMIN,
+        walletPassword: process.env.DB_PASSWORD,
+        configDir: process.env.TNS_ADMIN,
         poolMin: 2,
         poolMax: 10,
         poolIncrement: 1,
