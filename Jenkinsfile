@@ -267,7 +267,7 @@ pipeline {
         echo "🚀 Deploying containers to Staging VM..."
         withCredentials([sshUserPrivateKey(credentialsId: 'apps-ssh-key', keyFileVariable: 'APPS_KEY', usernameVariable: 'APPS_USER')]) {
           sh """
-            scp -i \$APPS_KEY -o StrictHostKeyChecking=no migration/deployment/docker-compose.yml \$APPS_USER@${TARGET_IP}:/home/ubuntu/docker-compose-staging.yml
+            scp -i \$APPS_KEY -o StrictHostKeyChecking=no migration/deployment/docker-compose.prod.yml \$APPS_USER@${TARGET_IP}:/home/ubuntu/docker-compose-staging.yml
           """
           sh """
             ssh -i \$APPS_KEY -o StrictHostKeyChecking=no \$APPS_USER@${TARGET_IP} "
@@ -352,7 +352,7 @@ pipeline {
         echo "🚀 Deploying to production VM..."
         withCredentials([sshUserPrivateKey(credentialsId: 'apps-ssh-key', keyFileVariable: 'APPS_KEY', usernameVariable: 'APPS_USER')]) {
           sh """
-            scp -i \$APPS_KEY -o StrictHostKeyChecking=no migration/deployment/docker-compose.yml \$APPS_USER@${TARGET_IP}:/home/ubuntu/docker-compose-production.yml
+            scp -i \$APPS_KEY -o StrictHostKeyChecking=no migration/deployment/docker-compose.prod.yml \$APPS_USER@${TARGET_IP}:/home/ubuntu/docker-compose-production.yml
           """
           sh """
             ssh -i \$APPS_KEY -o StrictHostKeyChecking=no \$APPS_USER@${TARGET_IP} "
@@ -367,9 +367,9 @@ pipeline {
         echo "🔬 Running Production Smoke Tests..."
         sh """
           sleep 10
-          STATUS_CODE=\$(curl -s -k -o /dev/null -w "%{http_code}" ${PRODUCTION_URL} || echo "000")
+          STATUS_CODE=\$(curl -s -k -o /dev/null -w "%{http_code}" http://localhost:8081 || echo "000")
           if [ "\$STATUS_CODE" -eq 200 ] || [ "\$STATUS_CODE" -eq 301 ] || [ "\$STATUS_CODE" -eq 302 ]; then
-            echo "✅ Smoke test passed! Production URL ${PRODUCTION_URL} is healthy."
+            echo "✅ Smoke test passed! Local container port 8081 is healthy."
           else
             echo "❌ Smoke test failed! Status: \$STATUS_CODE"
             exit 1
