@@ -4,8 +4,12 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install HashiCorp Vault CLI in the container for secrets injection
-RUN apk add --no-cache vault bash
+# Install Bash, wget, unzip and download official HashiCorp Vault CLI binary
+RUN apk add --no-cache bash wget unzip ca-certificates && \
+    wget https://releases.hashicorp.com/vault/1.15.4/vault_1.15.4_linux_amd64.zip && \
+    unzip vault_1.15.4_linux_amd64.zip && \
+    mv vault /usr/local/bin/ && \
+    rm vault_1.15.4_linux_amd64.zip
 
 # Copy package descriptors and install production dependencies
 COPY server/package*.json ./
