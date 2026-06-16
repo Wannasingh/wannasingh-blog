@@ -20,6 +20,7 @@ pipeline {
     // Jenkins Credentials
     DOCKER_CREDS     = credentials("docker-registry-creds")   // username/password credential
     SONAR_TOKEN      = credentials("sonarqube-token")          // secret text credential
+    VAULT_TOKEN      = credentials("vault-root-token")         // secret text credential
 
     // Target VMs & Environment URLs
     TARGET_IP        = "64.110.115.33"
@@ -264,16 +265,34 @@ pipeline {
         }
       }
       steps {
-        echo "🚀 Deploying containers to Staging VM..."
+        echo "🚀 Fetching secrets from Vault and deploying to Staging VM..."
+        sh """
+          SECRETS_JSON=\$(curl -s -H "X-Vault-Token: ${VAULT_TOKEN}" http://161.118.199.97:8200/v1/secret/data/wannasingh-blog || echo '{}')
+          node -e '
+            try {
+              const payload = JSON.parse(process.argv[1]);
+              const data = payload.data.data;
+              if (!data) throw new Error("No data in Vault response");
+              console.log("DB_USER=" + data.DB_USER);
+              console.log("DB_PASSWORD=" + data.DB_PASSWORD);
+              console.log("DB_CONNECTION_STRING=" + data.DB_CONNECTION_STRING);
+              console.log("JWT_SECRET=" + data.JWT_SECRET);
+            } catch (e) {
+              console.error("Error parsing Vault secrets:", e.message);
+              process.exit(1);
+            }
+          ' "\$SECRETS_JSON" > staging.env
+        """
         withCredentials([sshUserPrivateKey(credentialsId: 'apps-ssh-key', keyFileVariable: 'APPS_KEY', usernameVariable: 'APPS_USER')]) {
           sh """
+            scp -i \$APPS_KEY -o StrictHostKeyChecking=no staging.env \$APPS_USER@${TARGET_IP}:/home/ubuntu/.env-blog-staging
             scp -i \$APPS_KEY -o StrictHostKeyChecking=no migration/deployment/docker-compose.prod.yml \$APPS_USER@${TARGET_IP}:/home/ubuntu/docker-compose-staging.yml
           """
           sh """
             ssh -i \$APPS_KEY -o StrictHostKeyChecking=no \$APPS_USER@${TARGET_IP} "
               echo '${DOCKER_CREDS_PSW}' | docker login ${REGISTRY} --username '${DOCKER_CREDS_USR}' --password-stdin
-              IMAGE_TAG=${IMAGE_TAG} docker compose -f /home/ubuntu/docker-compose-staging.yml pull
-              IMAGE_TAG=${IMAGE_TAG} docker compose -f /home/ubuntu/docker-compose-staging.yml up -d
+              IMAGE_TAG=${IMAGE_TAG} docker compose --env-file /home/ubuntu/.env-blog-staging -f /home/ubuntu/docker-compose-staging.yml pull
+              IMAGE_TAG=${IMAGE_TAG} docker compose --env-file /home/ubuntu/.env-blog-staging -f /home/ubuntu/docker-compose-staging.yml up -d --remove-orphans
               docker logout ${REGISTRY}
             "
           """
@@ -352,32 +371,54 @@ pipeline {
         }
       }
       steps {
-        echo "🚀 Deploying to production VM..."
+        echo "🚀 Fetching secrets from Vault and deploying to Production VM..."
+        sh """
+          SECRETS_JSON=\$(curl -s -H "X-Vault-Token: ${VAULT_TOKEN}" http://161.118.199.97:8200/v1/secret/data/wannasingh-blog || echo '{}')
+          node -e '
+            try {
+              const payload = JSON.parse(process.argv[1]);
+              const data = payload.data.data;
+              if (!data) throw new Error("No data in Vault response");
+              console.log("DB_USER=" + data.DB_USER);
+              console.log("DB_PASSWORD=" + data.DB_PASSWORD);
+              console.log("DB_CONNECTION_STRING=" + data.DB_CONNECTION_STRING);
+              console.log("JWT_SECRET=" + data.JWT_SECRET);
+            } catch (e) {
+              console.error("Error parsing Vault secrets:", e.message);
+              process.exit(1);
+            }
+          ' "\$SECRETS_JSON" > production.env
+        """
         withCredentials([sshUserPrivateKey(credentialsId: 'apps-ssh-key', keyFileVariable: 'APPS_KEY', usernameVariable: 'APPS_USER')]) {
           sh """
+            scp -i \$APPS_KEY -o StrictHostKeyChecking=no production.env \$APPS_USER@${TARGET_IP}:/home/ubuntu/.env-blog-production
             scp -i \$APPS_KEY -o StrictHostKeyChecking=no migration/deployment/docker-compose.prod.yml \$APPS_USER@${TARGET_IP}:/home/ubuntu/docker-compose-production.yml
           """
           sh """
             ssh -i \$APPS_KEY -o StrictHostKeyChecking=no \$APPS_USER@${TARGET_IP} "
               echo '${DOCKER_CREDS_PSW}' | docker login ${REGISTRY} --username '${DOCKER_CREDS_USR}' --password-stdin
-              IMAGE_TAG=${IMAGE_TAG} docker compose -f /home/ubuntu/docker-compose-production.yml pull
-              IMAGE_TAG=${IMAGE_TAG} docker compose -f /home/ubuntu/docker-compose-production.yml up -d
+              IMAGE_TAG=${IMAGE_TAG} docker compose --env-file /home/ubuntu/.env-blog-production -f /home/ubuntu/docker-compose-production.yml pull
+              IMAGE_TAG=${IMAGE_TAG} docker compose --env-file /home/ubuntu/.env-blog-production -f /home/ubuntu/docker-compose-production.yml up -d --remove-orphans
               docker logout ${REGISTRY}
             "
           """
         }
         
         echo "🔬 Running Production Smoke Tests..."
-        sh """
-          sleep 10
-          STATUS_CODE=\$(curl -s -k -o /dev/null -w "%{http_code}" http://\${TARGET_IP}:8081 || echo "000")
-          if [ "\$STATUS_CODE" -eq 200 ] || [ "\$STATUS_CODE" -eq 301 ] || [ "\$STATUS_CODE" -eq 302 ]; then
-            echo "✅ Smoke test passed! Production VM port 8081 is healthy."
-          else
-            echo "❌ Smoke test failed! Status: \$STATUS_CODE"
-            exit 1
-          fi
-        """
+        withCredentials([sshUserPrivateKey(credentialsId: 'apps-ssh-key', keyFileVariable: 'APPS_KEY', usernameVariable: 'APPS_USER')]) {
+          sh """
+            ssh -i \$APPS_KEY -o StrictHostKeyChecking=no \$APPS_USER@${TARGET_IP} '
+              sleep 10
+              STATUS_CODE=\$(curl -s -k -o /dev/null -w "%{http_code}" http://localhost:8081 || echo "000")
+              if [ "\$STATUS_CODE" -eq 200 ] || [ "\$STATUS_CODE" -eq 301 ] || [ "\$STATUS_CODE" -eq 302 ]; then
+                echo "✅ Smoke test passed! Production VM port 8081 is healthy."
+              else
+                echo "❌ Smoke test failed! Status: \$STATUS_CODE"
+                exit 1
+              fi
+            '
+          """
+        }
         script {
           currentBuild.description = "Production: <a href='${PRODUCTION_URL}' target='_blank'>${PRODUCTION_URL}</a>"
         }

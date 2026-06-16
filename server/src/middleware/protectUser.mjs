@@ -1,5 +1,5 @@
-import supabase from "../utils/db.mjs";
-
+import jwt from "jsonwebtoken";
+import db from "../utils/db.mjs";
 
 const protectUser = async (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
@@ -9,20 +9,26 @@ const protectUser = async (req, res, next) => {
   }
 
   try {
-
-    const { data, error } = await supabase.auth.getUser(token);
-
-    if (error || !data.user) {
-      return res.status(401).json({ error: "Unauthorized: Invalid token" });
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "supersecretjwtkey");
+    
+    // Select user from Oracle
+    const result = await db.execute("SELECT id, username, name, role FROM users WHERE id = :id", { id: decoded.id });
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: "Unauthorized: User not found" });
     }
+    const user = result.rows[0];
 
-
-    req.user = { ...data.user };
-
+    req.user = {
+      id: user.ID,
+      username: user.USERNAME,
+      name: user.NAME,
+      role: user.ROLE
+    };
 
     next();
   } catch (err) {
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Auth middleware error:", err);
+    res.status(401).json({ error: "Unauthorized: Invalid or expired token" });
   }
 };
 

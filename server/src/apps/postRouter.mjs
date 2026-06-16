@@ -1,8 +1,10 @@
 import { Router } from "express";
-import supabase from "../utils/db.mjs";
-import protectAdmin from "../middleware/protectAdmin.mjs";
-import protectUser from "../middleware/protectUser.mjs";
+import db from "./db_oracle.mjs";
+import protectAdmin from "../../server/src/middleware/protectAdmin.mjs";
+import protectUser from "../../server/src/middleware/protectUser.mjs";
 import multer from "multer";
+import fs from "fs/promises";
+import path from "path";
 
 const postRouter = Router();
 
@@ -12,45 +14,38 @@ const imageFileUpload = multerUpload.fields([
   { name: "imageFile", maxCount: 1 },
 ]);
 
+// Local file storage settings for VM deployment replacing Supabase Storage
+const UPLOADS_DIR = process.env.UPLOADS_DIR || "/var/www/uploads/posts";
 
 postRouter.post("/", [imageFileUpload, protectAdmin], async (req, res) => {
   const newPost = req.body;
   const file = req.files.imageFile[0];
-  const userId = req.user.id; // Get user ID from JWT
-
-  const bucketName = "articles";
-  const filePath = `posts/${Date.now()}`;
+  const userId = req.user.id; 
 
   try {
+    // Save image locally replacing Supabase storage bucket upload
+    await fs.mkdir(UPLOADS_DIR, { recursive: true });
+    const filename = `posts-${Date.now()}${path.extname(file.originalname)}`;
+    const localFilePath = path.join(UPLOADS_DIR, filename);
+    await fs.writeFile(localFilePath, file.buffer);
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from(bucketName)
-      .upload(filePath, file.buffer, {
-        contentType: file.mimetype,
-        upsert: false,
-      });
+    // URL path served by Nginx reverse proxy
+    const publicUrl = `/uploads/posts/${filename}`;
 
-    if (uploadError) throw uploadError;
+    const insertSql = `
+      INSERT INTO posts (title, image, category_id, description, content, status_id, user_id, date)
+      VALUES (:title, :image, :category_id, :description, :content, :status_id, :user_id, CURRENT_TIMESTAMP)
+    `;
 
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from(bucketName).getPublicUrl(uploadData.path);
-
-
-    const { error: insertError } = await supabase.from("posts").insert([
-      {
-        title: newPost.title,
-        image: publicUrl,
-        category_id: parseInt(newPost.category_id),
-        description: newPost.description,
-        content: newPost.content,
-        status_id: parseInt(newPost.status_id),
-        user_id: userId, // Add user_id
-      },
-    ]);
-
-    if (insertError) throw insertError;
+    await db.execute(insertSql, {
+      title: newPost.title,
+      image: publicUrl,
+      category_id: parseInt(newPost.category_id),
+      description: newPost.description,
+      content: newPost.content,
+      status_id: parseInt(newPost.status_id),
+      user_id: userId
+    });
 
     return res.status(201).json({ message: "Created post successfully" });
   } catch (err) {
@@ -61,7 +56,6 @@ postRouter.post("/", [imageFileUpload, protectAdmin], async (req, res) => {
   }
 });
 
-
 postRouter.get("/", async (req, res) => {
   try {
     const category = req.query.category || "";
@@ -71,39 +65,46 @@ postRouter.get("/", async (req, res) => {
 
     const safePage = Math.max(1, page);
     const safeLimit = Math.max(1, Math.min(100, limit));
-    const from = (safePage - 1) * safeLimit;
-    const to = from + safeLimit - 1;
+    const offset = (safePage - 1) * safeLimit;
 
+    // Building search queries in Oracle Database using bind variables dynamically
+    let querySql = `
+      SELECT p.*, 
+             c.name AS category_name, 
+             s.status AS status_name,
+             u.name AS author_name, 
+             u.profile_pic AS author_profile_pic,
+             COUNT(*) OVER() AS total_count
+      FROM posts p
+      JOIN categories c ON p.category_id = c.id
+      JOIN statuses s ON p.status_id = s.id
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.status_id = 2
+    `;
 
-    let query = supabase
-      .from("posts")
-      .select(`
-        *, 
-        categories!inner(name), 
-        statuses!inner(status),
-        users!posts_user_id_fkey(id, name, profile_pic)
-      `, { count: "exact" })
-      .eq("status_id", 2);
-
+    const binds = {};
 
     if (category) {
-      query = query.ilike("categories.name", `%${category}%`);
+      querySql += ` AND LOWER(c.name) LIKE :category`;
+      binds.category = `%${category.toLowerCase()}%`;
     }
 
     if (keyword) {
-
-      query = query.or(
-        `title.ilike.%${keyword}%,description.ilike.%${keyword}%,content.ilike.%${keyword}%`
-      );
+      querySql += ` AND (LOWER(p.title) LIKE :keyword 
+                     OR LOWER(p.description) LIKE :keyword 
+                     OR DBMS_LOB.INSTR(LOWER(p.content), :keyword) > 0)`;
+      binds.keyword = `%${keyword.toLowerCase()}%`;
     }
 
+    // Oracle pagination: OFFSET offset ROWS FETCH NEXT limit ROWS ONLY
+    querySql += ` ORDER BY p."DATE" DESC OFFSET :offset ROWS FETCH NEXT :limit ROWS ONLY`;
+    binds.offset = offset;
+    binds.limit = safeLimit;
 
-    const { data, count, error } = await query
-      .order("date", { ascending: false })
-      .range(from, to);
+    const result = await db.execute(querySql, binds);
+    const data = result.rows;
 
-    if (error) throw error;
-
+    const count = data.length > 0 ? data[0].TOTAL_COUNT : 0;
 
     const results = {
       totalPosts: count,
@@ -111,17 +112,29 @@ postRouter.get("/", async (req, res) => {
       currentPage: safePage,
       limit: safeLimit,
       posts: data.map((post) => ({
-        ...post,
-        category: post.categories?.name,
-        status: post.statuses?.status,
-        author: post.users || { name: "Wannasingh K.", profile_pic: null },
+        id: post.ID,
+        title: post.TITLE,
+        image: post.IMAGE,
+        category_id: post.CATEGORY_ID,
+        description: post.DESCRIPTION,
+        content: post.CONTENT,
+        status_id: post.STATUS_ID,
+        user_id: post.USER_ID,
+        date: post.DATE,
+        category: post.CATEGORY_NAME,
+        status: post.STATUS_NAME,
+        author: {
+          id: post.USER_ID,
+          name: post.AUTHOR_NAME || "Wannasingh K.",
+          profile_pic: post.AUTHOR_PROFILE_PIC || null
+        }
       })),
     };
 
-    if (to + 1 < count) {
+    if (offset + safeLimit < count) {
       results.nextPage = safePage + 1;
     }
-    if (from > 0) {
+    if (offset > 0) {
       results.previousPage = safePage - 1;
     }
 
@@ -134,202 +147,228 @@ postRouter.get("/", async (req, res) => {
   }
 });
 
-
 postRouter.get("/admin", protectAdmin, async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from("posts")
-      .select(`*, categories(name), statuses(status)`)
-      .order("date", { ascending: false });
+    const querySql = `
+      SELECT p.*, c.name AS category_name, s.status AS status_name
+      FROM posts p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN statuses s ON p.status_id = s.id
+      ORDER BY p."DATE" DESC
+    `;
 
-    if (error) throw error;
-
-    const posts = data.map((post) => ({
-      ...post,
-      category: post.categories?.name,
-      status: post.statuses?.status,
+    const result = await db.execute(querySql);
+    const posts = result.rows.map((post) => ({
+      id: post.ID,
+      title: post.TITLE,
+      image: post.IMAGE,
+      category_id: post.CATEGORY_ID,
+      description: post.DESCRIPTION,
+      content: post.CONTENT,
+      status_id: post.STATUS_ID,
+      user_id: post.USER_ID,
+      date: post.DATE,
+      category: post.CATEGORY_NAME,
+      status: post.STATUS_NAME,
     }));
 
     return res.status(200).json({ posts });
   } catch (error) {
+    console.error(error);
     return res.status(500).json({
       message: "Server could not read posts because of a database issue",
     });
   }
 });
 
-
 postRouter.get("/:postId", async (req, res) => {
-  const postIdFromClient = req.params.postId;
+  const postId = req.params.postId;
 
   try {
-    const { data, error } = await supabase
-      .from("posts")
-      .select(`*, categories(name), statuses(status)`)
-      .eq("id", postIdFromClient)
-      .eq("status_id", 2)
-      .single();
+    const querySql = `
+      SELECT p.*, c.name AS category_name, s.status AS status_name
+      FROM posts p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN statuses s ON p.status_id = s.id
+      WHERE p.id = :postId AND p.status_id = 2
+    `;
 
-    if (error || !data) {
+    const result = await db.execute(querySql, { postId });
+    
+    if (result.rows.length === 0) {
       return res.status(404).json({
-        message: `Server could not find a requested post (post id: ${postIdFromClient})`,
+        message: `Server could not find a requested post (post id: ${postId})`,
       });
     }
 
+    const post = result.rows[0];
+
     return res.status(200).json({
-      ...data,
-      category: data.categories?.name,
-      status: data.statuses?.status,
+      id: post.ID,
+      title: post.TITLE,
+      image: post.IMAGE,
+      category_id: post.CATEGORY_ID,
+      description: post.DESCRIPTION,
+      content: post.CONTENT,
+      status_id: post.STATUS_ID,
+      user_id: post.USER_ID,
+      date: post.DATE,
+      category: post.CATEGORY_NAME,
+      status: post.STATUS_NAME,
     });
   } catch (err) {
+    console.error(err);
     return res.status(500).json({
       message: `Server could not read post because database issue`,
     });
   }
 });
 
-
 postRouter.get("/admin/:postId", protectAdmin, async (req, res) => {
-  const postIdFromClient = req.params.postId;
+  const postId = req.params.postId;
 
   try {
-    const { data, error } = await supabase
-      .from("posts")
-      .select(`*, categories(name), statuses(status)`)
-      .eq("id", postIdFromClient)
-      .single();
+    const querySql = `
+      SELECT p.*, c.name AS category_name, s.status AS status_name
+      FROM posts p
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN statuses s ON p.status_id = s.id
+      WHERE p.id = :postId
+    `;
 
-    if (error || !data) {
+    const result = await db.execute(querySql, { postId });
+    
+    if (result.rows.length === 0) {
       return res.status(404).json({
-        message: `Server could not find a requested post (post id: ${postIdFromClient})`,
+        message: `Server could not find a requested post (post id: ${postId})`,
+      });
+    }
+
+    const post = result.rows[0];
+
+    return res.status(200).json({
+      id: post.ID,
+      title: post.TITLE,
+      image: post.IMAGE,
+      category_id: post.CATEGORY_ID,
+      description: post.DESCRIPTION,
+      content: post.CONTENT,
+      status_id: post.STATUS_ID,
+      user_id: post.USER_ID,
+      date: post.DATE,
+      category: post.CATEGORY_NAME,
+      status: post.STATUS_NAME,
+    });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({
+      message: `Server could not read post because database issue`,
+    });
+  }
+});
+
+postRouter.put("/:postId", [imageFileUpload, protectAdmin], async (req, res) => {
+  const postId = req.params.postId;
+  const updatedPost = req.body;
+
+  try {
+    let publicUrl = updatedPost.image;
+    const file = req.files?.imageFile?.[0];
+
+    if (file) {
+      await fs.mkdir(UPLOADS_DIR, { recursive: true });
+      const filename = `posts-${Date.now()}${path.extname(file.originalname)}`;
+      const localFilePath = path.join(UPLOADS_DIR, filename);
+      await fs.writeFile(localFilePath, file.buffer);
+      publicUrl = `/uploads/posts/${filename}`;
+    }
+
+    const updateSql = `
+      UPDATE posts 
+      SET title = :title,
+          image = :image,
+          category_id = :category_id,
+          description = :description,
+          content = :content,
+          status_id = :status_id,
+          "DATE" = CURRENT_TIMESTAMP
+      WHERE id = :postId
+    `;
+
+    const result = await db.execute(updateSql, {
+      title: updatedPost.title,
+      image: publicUrl,
+      category_id: parseInt(updatedPost.category_id),
+      description: updatedPost.description,
+      content: updatedPost.content,
+      status_id: parseInt(updatedPost.status_id),
+      postId: postId
+    });
+
+    if (result.rowsAffected === 0) {
+      return res.status(404).json({
+        message: `Server could not find a requested post to update (post id: ${postId})`,
       });
     }
 
     return res.status(200).json({
-      ...data,
-      category: data.categories?.name,
-      status: data.statuses?.status,
+      message: "Updated post successfully",
     });
-  } catch {
+  } catch (err) {
+    console.error(err);
     return res.status(500).json({
-      message: `Server could not read post because database issue`,
+      message: `Server could not update post due to an error`,
     });
   }
 });
 
-
-postRouter.put(
-  "/:postId",
-  [imageFileUpload, protectAdmin],
-  async (req, res) => {
-    const postIdFromClient = req.params.postId;
-    const updatedPost = { ...req.body, date: new Date() };
-    const bucketName = "articles";
-
-    try {
-      let publicUrl = updatedPost.image;
-      const file = req.files?.imageFile?.[0];
-
-      if (file) {
-        const filePath = `posts/${Date.now()}`;
-        const { data, error } = await supabase.storage
-          .from(bucketName)
-          .upload(filePath, file.buffer, {
-            contentType: file.mimetype,
-            upsert: false,
-          });
-
-        if (error) throw error;
-
-        const response = supabase.storage
-          .from(bucketName)
-          .getPublicUrl(data.path);
-
-        publicUrl = response.data.publicUrl;
-      }
-
-      const { data, error } = await supabase
-        .from("posts")
-        .update({
-          title: updatedPost.title,
-          image: publicUrl,
-          category_id: parseInt(updatedPost.category_id),
-          description: updatedPost.description,
-          content: updatedPost.content,
-          status_id: parseInt(updatedPost.status_id),
-          date: updatedPost.date,
-        })
-        .eq("id", postIdFromClient)
-        .select();
-
-      if (error) throw error;
-
-      if (!data || data.length === 0) {
-        return res.status(404).json({
-          message: `Server could not find a requested post to update (post id: ${postIdFromClient})`,
-        });
-      }
-
-      return res.status(200).json({
-        message: "Updated post successfully",
-      });
-    } catch (err) {
-      console.error(err);
-      return res.status(500).json({
-        message: `Server could not update post due to an error`,
-      });
-    }
-  }
-);
-
-
 postRouter.delete("/:postId", protectAdmin, async (req, res) => {
-  const postIdFromClient = req.params.postId;
+  const postId = req.params.postId;
 
   try {
-    const { data, error } = await supabase
-      .from("posts")
-      .delete()
-      .eq("id", postIdFromClient)
-      .select();
+    const deleteSql = `DELETE FROM posts WHERE id = :postId`;
+    const result = await db.execute(deleteSql, { postId });
 
-    if (error) throw error;
-
-    if (!data || data.length === 0) {
+    if (result.rowsAffected === 0) {
       return res.status(404).json({
-        message: `Server could not find a requested post to delete (post id: ${postIdFromClient})`,
+        message: `Server could not find a requested post to delete (post id: ${postId})`,
       });
     }
 
     return res.status(200).json({
       message: "Deleted post successfully",
     });
-  } catch {
+  } catch (err) {
+    console.error(err);
     return res.status(500).json({
       message: `Server could not delete post because database connection`,
     });
   }
 });
 
-
 postRouter.get("/:postId/comments", async (req, res) => {
-  const postIdFromClient = req.params.postId;
+  const postId = req.params.postId;
 
   try {
-    const { data, error } = await supabase
-      .from("comments")
-      .select(`*, users(name, username, profile_pic, role)`)
-      .eq("post_id", postIdFromClient)
-      .order("created_at", { ascending: false });
+    const querySql = `
+      SELECT c.*, u.name, u.username, u.profile_pic, u.role
+      FROM comments c
+      JOIN users u ON c.user_id = u.id
+      WHERE c.post_id = :postId
+      ORDER BY c.created_at DESC
+    `;
 
-    if (error) throw error;
-
-    const formattedData = data.map((comment) => ({
-      ...comment,
-      name: comment.users?.name,
-      username: comment.users?.username,
-      profile_pic: comment.users?.profile_pic,
-      role: comment.users?.role,
+    const result = await db.execute(querySql, { postId });
+    const formattedData = result.rows.map((comment) => ({
+      id: comment.ID,
+      post_id: comment.POST_ID,
+      user_id: comment.USER_ID,
+      comment_text: comment.COMMENT_TEXT,
+      created_at: comment.CREATED_AT,
+      name: comment.NAME,
+      username: comment.USERNAME,
+      profile_pic: comment.PROFILE_PIC,
+      role: comment.ROLE,
     }));
 
     return res.status(200).json(formattedData);
@@ -341,9 +380,8 @@ postRouter.get("/:postId/comments", async (req, res) => {
   }
 });
 
-
 postRouter.post("/:postId/comments", protectUser, async (req, res) => {
-  const postIdFromClient = req.params.postId;
+  const postId = req.params.postId;
   const { id: userId } = req.user;
   const { comment } = req.body;
 
@@ -356,133 +394,116 @@ postRouter.post("/:postId/comments", protectUser, async (req, res) => {
       message: "Comment content exceeds the maximum length of 500 characters",
     });
   }
+
   try {
-    // Insert comment
-    const { error: commentError } = await supabase.from("comments").insert([
-      {
-        post_id: postIdFromClient,
+    await db.executeTransaction(async (conn) => {
+      // 1. Insert comment
+      const insertSql = `
+        INSERT INTO comments (post_id, user_id, comment_text, created_at)
+        VALUES (:post_id, :user_id, :comment_text, CURRENT_TIMESTAMP)
+      `;
+      await conn.execute(insertSql, {
+        post_id: postId,
         user_id: userId,
-        comment_text: comment,
-      },
-    ]);
+        comment_text: comment
+      });
 
-    if (commentError) throw commentError;
+      // 2. Get post author
+      const postQuery = `SELECT user_id FROM posts WHERE id = :post_id`;
+      const postRes = await conn.execute(postQuery, { post_id: postId });
 
-    // Get post author to create notification
-    const { data: postData, error: postError } = await supabase
-      .from("posts")
-      .select("user_id")
-      .eq("id", postIdFromClient)
-      .single();
-
-    if (!postError && postData && postData.user_id !== userId) {
-      // Only create notification if commenter is not the post author
-      await supabase.from("notifications").insert([
-        {
-          user_id: userId,
-          post_id: postIdFromClient,
-          type: "comment",
-          content: comment.substring(0, 100), // Store first 100 chars
-        },
-      ]);
-    }
+      if (postRes.rows.length > 0) {
+        const postAuthorId = postRes.rows[0].USER_ID;
+        // 3. Insert notification if not self
+        if (postAuthorId !== userId) {
+          const notifSql = `
+            INSERT INTO notifications (user_id, post_id, type, content, is_read, created_at)
+            VALUES (:user_id, :post_id, 'comment', :content, 'N', CURRENT_TIMESTAMP)
+          `;
+          await conn.execute(notifSql, {
+            user_id: userId,
+            post_id: postId,
+            content: comment.substring(0, 100)
+          });
+        }
+      }
+    });
 
     return res.status(201).json({ message: "Created comment successfully" });
   } catch (err) {
     console.error(err);
     return res.status(500).json({
-      message:
-        "Server could not create comment due to a database connection issue",
+      message: "Server could not create comment due to a database connection issue",
       error: err.message,
     });
   }
 });
 
-
 postRouter.get("/:postId/likes", async (req, res) => {
-  const postIdFromClient = req.params.postId;
+  const postId = req.params.postId;
   try {
-    const { count, error } = await supabase
-      .from("likes")
-      .select("*", { count: "exact", head: true })
-      .eq("post_id", postIdFromClient);
-
-    if (error) throw error;
-
-    return res.status(200).json({ like_count: count });
-  } catch {
+    const sql = `SELECT COUNT(*) AS like_count FROM likes WHERE post_id = :postId`;
+    const result = await db.execute(sql, { postId });
+    return res.status(200).json({ like_count: result.rows[0].LIKE_COUNT });
+  } catch (err) {
+    console.error(err);
     return res.status(500).json({
       message: `Server could not count likes because database connection`,
     });
   }
 });
 
-
 postRouter.post("/:postId/likes", protectUser, async (req, res) => {
-  const postIdFromClient = req.params.postId;
+  const postId = req.params.postId;
   const userId = req.user.id;
+
   try {
-    // Insert like
-    const { error: likeError } = await supabase.from("likes").insert([
-      {
-        post_id: postIdFromClient,
-        user_id: userId,
-      },
-    ]);
+    await db.executeTransaction(async (conn) => {
+      // 1. Insert like
+      const insertSql = `INSERT INTO likes (post_id, user_id) VALUES (:post_id, :user_id)`;
+      await conn.execute(insertSql, { post_id: postId, user_id: userId });
 
-    if (likeError) throw likeError;
+      // 2. Get post author to notify
+      const postQuery = `SELECT user_id FROM posts WHERE id = :post_id`;
+      const postRes = await conn.execute(postQuery, { post_id: postId });
 
-    // Get post author to create notification
-    const { data: postData, error: postError } = await supabase
-      .from("posts")
-      .select("user_id")
-      .eq("id", postIdFromClient)
-      .single();
-
-    if (!postError && postData && postData.user_id !== userId) {
-      // Only create notification if liker is not the post author
-      await supabase.from("notifications").insert([
-        {
-          user_id: userId,
-          post_id: postIdFromClient,
-          type: "like",
-          content: null,
-        },
-      ]);
-    }
+      if (postRes.rows.length > 0) {
+        const postAuthorId = postRes.rows[0].USER_ID;
+        if (postAuthorId !== userId) {
+          const notifSql = `
+            INSERT INTO notifications (user_id, post_id, type, is_read, created_at)
+            VALUES (:user_id, :post_id, 'like', 'N', CURRENT_TIMESTAMP)
+          `;
+          await conn.execute(notifSql, { user_id: userId, post_id: postId });
+        }
+      }
+    });
 
     return res.status(201).json({ message: "Created like successfully" });
   } catch (err) {
+    console.error(err);
     return res.status(500).json({
-      message:
-        "Server could not create like because of a database connection issue",
+      message: "Server could not create like because of a database connection issue",
       error: err.message,
     });
   }
 });
 
-
 postRouter.delete("/:postId/likes", protectUser, async (req, res) => {
-  const postIdFromClient = req.params.postId;
+  const postId = req.params.postId;
   const userId = req.user.id;
+
   try {
-    const { data, error } = await supabase
-      .from("likes")
-      .delete()
-      .eq("post_id", postIdFromClient)
-      .eq("user_id", userId)
-      .select();
+    const deleteSql = `DELETE FROM likes WHERE post_id = :post_id AND user_id = :user_id`;
+    const result = await db.execute(deleteSql, { post_id: postId, user_id: userId });
 
-    if (error) throw error;
-
-    if (!data || data.length === 0) {
-      return res
-        .status(404)
-        .json({ message: "Like not found or you do not own this like" });
+    if (result.rowsAffected === 0) {
+      return res.status(404).json({ message: "Like not found or you do not own this like" });
     }
 
     return res.status(200).json({ message: "Deleted like successfully" });
   } catch (err) {
+    console.error(err);
     return res.status(500).json({
       message: `Server could not delete like due to a database connection issue`,
       error: err.message,

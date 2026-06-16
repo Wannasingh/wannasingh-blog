@@ -1,5 +1,6 @@
 import { Router } from "express";
-import supabase from "../utils/db.mjs";
+import oracledb from "oracledb";
+import db from "../utils/db.mjs";
 import protectUser from "../middleware/protectUser.mjs";
 
 const messageRouter = Router();
@@ -9,21 +10,41 @@ messageRouter.get("/conversations", protectUser, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const { data, error } = await supabase
-      .from("messages")
-      .select(`
-        *,
-        sender:users!messages_sender_id_fkey(id, name, profile_pic),
-        receiver:users!messages_receiver_id_fkey(id, name, profile_pic)
-      `)
-      .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
-      .order("created_at", { ascending: false });
+    const querySql = `
+      SELECT m.*, 
+             s.name AS sender_name, s.profile_pic AS sender_profile_pic,
+             r.name AS receiver_name, r.profile_pic AS receiver_profile_pic
+      FROM messages m
+      JOIN users s ON m.sender_id = s.id
+      JOIN users r ON m.receiver_id = r.id
+      WHERE m.sender_id = :userId OR m.receiver_id = :userId
+      ORDER BY m.created_at DESC
+    `;
 
-    if (error) throw error;
+    const result = await db.execute(querySql, { userId });
 
     // Group by conversation
     const conversations = {};
-    data.forEach((msg) => {
+    result.rows.forEach((row) => {
+      const msg = {
+        id: row.ID,
+        sender_id: row.SENDER_ID,
+        receiver_id: row.RECEIVER_ID,
+        message: row.MESSAGE,
+        is_read: row.IS_READ === "Y",
+        created_at: row.CREATED_AT,
+        sender: {
+          id: row.SENDER_ID,
+          name: row.SENDER_NAME,
+          profile_pic: row.SENDER_PROFILE_PIC
+        },
+        receiver: {
+          id: row.RECEIVER_ID,
+          name: row.RECEIVER_NAME,
+          profile_pic: row.RECEIVER_PROFILE_PIC
+        }
+      };
+
       const otherUserId = msg.sender_id === userId ? msg.receiver_id : msg.sender_id;
       if (!conversations[otherUserId]) {
         conversations[otherUserId] = {
@@ -52,41 +73,46 @@ messageRouter.get("/:userId", protectUser, async (req, res) => {
     const currentUserId = req.user.id;
     const otherUserId = req.params.userId;
 
-    const { data, error } = await supabase
-      .from("messages")
-      .select(`
-        *,
-        sender:users!messages_sender_id_fkey(id, name, profile_pic)
-      `)
-      .or(
-        `and(sender_id.eq.${currentUserId},receiver_id.eq.${otherUserId}),and(sender_id.eq.${otherUserId},receiver_id.eq.${currentUserId})`
-      )
-      .order("created_at", { ascending: true });
+    const querySql = `
+      SELECT m.*, 
+             s.name AS sender_name, s.profile_pic AS sender_profile_pic
+      FROM messages m
+      JOIN users s ON m.sender_id = s.id
+      WHERE (m.sender_id = :currentUserId AND m.receiver_id = :otherUserId)
+         OR (m.sender_id = :otherUserId AND m.receiver_id = :currentUserId)
+      ORDER BY m.created_at ASC
+    `;
 
-    if (error) throw error;
+    const result = await db.execute(querySql, { currentUserId, otherUserId });
 
     // Mark messages as read (only messages sent TO current user FROM other user)
-    const { data: updatedMessages, error: updateError } = await supabase
-      .from("messages")
-      .update({ is_read: true })
-      .eq("receiver_id", currentUserId)
-      .eq("sender_id", otherUserId)
-      .eq("is_read", false)
-      .select();
-
-    if (updateError) {
-      console.error("Error marking messages as read:", updateError);
-    } else if (updatedMessages && updatedMessages.length > 0) {
-      console.log(`Marked ${updatedMessages.length} messages as read`);
-      // Update the data to reflect the read status
-      data.forEach(msg => {
-        if (msg.receiver_id === currentUserId && msg.sender_id === otherUserId) {
-          msg.is_read = true;
-        }
-      });
+    const updateSql = `
+      UPDATE messages 
+      SET is_read = 'Y' 
+      WHERE receiver_id = :currentUserId 
+        AND sender_id = :otherUserId 
+        AND is_read = 'N'
+    `;
+    const updateResult = await db.execute(updateSql, { currentUserId, otherUserId });
+    if (updateResult.rowsAffected > 0) {
+      console.log(`Marked ${updateResult.rowsAffected} messages as read`);
     }
 
-    return res.status(200).json(data);
+    const messages = result.rows.map(row => ({
+      id: row.ID,
+      sender_id: row.SENDER_ID,
+      receiver_id: row.RECEIVER_ID,
+      message: row.MESSAGE,
+      is_read: row.RECEIVER_ID === currentUserId && row.SENDER_ID === otherUserId ? true : (row.IS_READ === "Y"),
+      created_at: row.CREATED_AT,
+      sender: {
+        id: row.SENDER_ID,
+        name: row.SENDER_NAME,
+        profile_pic: row.SENDER_PROFILE_PIC
+      }
+    }));
+
+    return res.status(200).json(messages);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Failed to get messages" });
@@ -103,20 +129,45 @@ messageRouter.post("/", protectUser, async (req, res) => {
       return res.status(400).json({ message: "Receiver and message are required" });
     }
 
-    const { data, error } = await supabase
-      .from("messages")
-      .insert([
-        {
-          sender_id: senderId,
-          receiver_id: receiverId,
-          message: message.trim(),
-        },
-      ])
-      .select();
+    const insertSql = `
+      INSERT INTO messages (sender_id, receiver_id, message, is_read)
+      VALUES (:senderId, :receiverId, :message, 'N')
+      RETURNING id INTO :id
+    `;
 
-    if (error) throw error;
+    const result = await db.execute(insertSql, {
+      senderId,
+      receiverId,
+      message: message.trim(),
+      id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT }
+    });
 
-    return res.status(201).json(data[0]);
+    const newId = result.outBinds.id[0];
+
+    const selectSql = `
+      SELECT m.*, s.name AS sender_name, s.profile_pic AS sender_profile_pic
+      FROM messages m
+      JOIN users s ON m.sender_id = s.id
+      WHERE m.id = :newId
+    `;
+    const selectResult = await db.execute(selectSql, { newId });
+    const row = selectResult.rows[0];
+
+    const newMsg = {
+      id: row.ID,
+      sender_id: row.SENDER_ID,
+      receiver_id: row.RECEIVER_ID,
+      message: row.MESSAGE,
+      is_read: row.IS_READ === "Y",
+      created_at: row.CREATED_AT,
+      sender: {
+        id: row.SENDER_ID,
+        name: row.SENDER_NAME,
+        profile_pic: row.SENDER_PROFILE_PIC
+      }
+    };
+
+    return res.status(201).json(newMsg);
   } catch (err) {
     console.error(err);
     return res.status(500).json({ message: "Failed to send message" });
@@ -128,15 +179,16 @@ messageRouter.get("/unread/count", protectUser, async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const { count, error } = await supabase
-      .from("messages")
-      .select("*", { count: "exact", head: true })
-      .eq("receiver_id", userId)
-      .eq("is_read", false);
+    const querySql = `
+      SELECT COUNT(*) AS count 
+      FROM messages 
+      WHERE receiver_id = :userId 
+        AND is_read = 'N'
+    `;
+    const result = await db.execute(querySql, { userId });
+    const count = result.rows[0]?.COUNT || 0;
 
-    if (error) throw error;
-
-    return res.status(200).json({ count: count || 0 });
+    return res.status(200).json({ count });
   } catch (err) {
     console.error(err);
     return res.status(200).json({ count: 0 });
