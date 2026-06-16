@@ -98,19 +98,18 @@ pipeline {
 
     // ── Stage 3: Install Dependencies ────────────────────────────────────────
     stage("Install Dependencies") {
-      agent {
-        docker {
-          image "node:22-alpine"
-          reuseNode true
-        }
-      }
       steps {
         echo "⚙️ Installing project dependencies..."
         sh """
-          echo "Installing Client dependencies..."
-          cd client && npm ci
-          echo "Installing Server dependencies..."
-          cd ../server && npm ci
+          docker run --rm \
+            -v \$(echo \${WORKSPACE} | sed "s|/var/jenkins_home/|/var/lib/docker/volumes/${JENKINS_VOLUME}/_data/|"):/app \
+            -w /app/client \
+            node:22-alpine npm ci
+            
+          docker run --rm \
+            -v \$(echo \${WORKSPACE} | sed "s|/var/jenkins_home/|/var/lib/docker/volumes/${JENKINS_VOLUME}/_data/|"):/app \
+            -w /app/server \
+            node:22-alpine npm ci
         """
       }
     }
@@ -119,33 +118,29 @@ pipeline {
     stage("Parallel Build & Unit Test") {
       parallel {
         stage("Backend: Test & Lint") {
-          agent {
-            docker {
-              image "node:22-alpine"
-              reuseNode true
-            }
-          }
           steps {
             echo "⚙️ Running Backend Linters & Tests..."
             sh """
-              cd server
-              npm run test || echo "⚠️ Backend tests completed (or none configured)."
+              docker run --rm \
+                -v \$(echo \${WORKSPACE} | sed "s|/var/jenkins_home/|/var/lib/docker/volumes/${JENKINS_VOLUME}/_data/|"):/app \
+                -w /app/server \
+                node:22-alpine npm run test || echo "⚠️ Backend tests completed (or none configured)."
             """
           }
         }
         stage("Frontend: Build & Lint") {
-          agent {
-            docker {
-              image "node:22-alpine"
-              reuseNode true
-            }
-          }
           steps {
             echo "⚙️ Running Frontend Linting & Build..."
             sh """
-              cd client
-              npm run lint || true
-              npm run build
+              docker run --rm \
+                -v \$(echo \${WORKSPACE} | sed "s|/var/jenkins_home/|/var/lib/docker/volumes/${JENKINS_VOLUME}/_data/|"):/app \
+                -w /app/client \
+                node:22-alpine npm run lint || true
+                
+              docker run --rm \
+                -v \$(echo \${WORKSPACE} | sed "s|/var/jenkins_home/|/var/lib/docker/volumes/${JENKINS_VOLUME}/_data/|"):/app \
+                -w /app/client \
+                node:22-alpine npm run build
             """
           }
         }
@@ -185,17 +180,18 @@ pipeline {
           }
         }
         stage("Dependency Check / SCA") {
-          agent {
-            docker {
-              image "node:22-alpine"
-              reuseNode true
-            }
-          }
           steps {
             echo "🔍 Running Software Composition Analysis (SCA)..."
             sh """
-              cd client && npm audit --audit-level=high || true
-              cd ../server && npm audit --audit-level=high || true
+              docker run --rm \
+                -v \$(echo \${WORKSPACE} | sed "s|/var/jenkins_home/|/var/lib/docker/volumes/${JENKINS_VOLUME}/_data/|"):/app \
+                -w /app/client \
+                node:22-alpine npm audit --audit-level=high || true
+                
+              docker run --rm \
+                -v \$(echo \${WORKSPACE} | sed "s|/var/jenkins_home/|/var/lib/docker/volumes/${JENKINS_VOLUME}/_data/|"):/app \
+                -w /app/server \
+                node:22-alpine npm audit --audit-level=high || true
             """
           }
         }
