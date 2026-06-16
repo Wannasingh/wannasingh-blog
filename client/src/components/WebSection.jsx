@@ -18,7 +18,6 @@ import {
   LogOut,
   Loader2,
   SquareArrowOutUpRight,
-  Bell,
 } from "lucide-react";
 import { useAuth } from "@/contexts/authentication";
 import { Skeleton } from "@/components/ui/skeleton";

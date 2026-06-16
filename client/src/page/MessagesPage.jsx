@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { NavBar, Footer } from "@/components/WebSection";
 import { useAuth } from "@/contexts/authentication";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -18,6 +18,88 @@ export default function MessagesPage() {
     const [otherUserTyping, setOtherUserTyping] = useState(false);
     const messagesEndRef = useRef(null);
     const typingTimeoutRef = useRef(null);
+
+    const scrollToBottom = useCallback(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, []);
+
+    const checkTypingStatus = useCallback(async (userId) => {
+        try {
+            const response = await axios.get(
+                `${import.meta.env.VITE_API_URL}/messages/typing/${userId}`
+            );
+            setOtherUserTyping(response.data.isTyping);
+        } catch (error) {
+            console.error("Error checking typing status:", error);
+        }
+    }, []);
+
+    const sendTypingStatus = useCallback(async () => {
+        if (!selectedUser) return;
+
+        try {
+            await axios.post(
+                `${import.meta.env.VITE_API_URL}/messages/typing`,
+                { receiverId: selectedUser.id }
+            );
+        } catch (error) {
+            console.error("Error sending typing status:", error);
+        }
+    }, [selectedUser]);
+
+    const handleTyping = () => {
+        sendTypingStatus();
+
+        // Clear existing timeout
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+        }
+
+        // Set new timeout to send typing status again
+        typingTimeoutRef.current = setTimeout(() => {
+            sendTypingStatus();
+        }, 1000);
+    };
+
+    const fetchConversations = useCallback(async () => {
+        try {
+            const response = await axios.get(
+                `${import.meta.env.VITE_API_URL}/messages/conversations`
+            );
+            setConversations(response.data);
+        } catch (error) {
+            console.error("Error fetching conversations:", error);
+        }
+    }, []);
+
+    const fetchMessages = useCallback(async (userId, silent = false) => {
+        try {
+            const response = await axios.get(
+                `${import.meta.env.VITE_API_URL}/messages/${userId}`
+            );
+            const prevLength = messages.length;
+            setMessages(response.data);
+
+            // Auto scroll only if new message arrived
+            if (!silent && response.data.length > prevLength) {
+                setTimeout(scrollToBottom, 100);
+            }
+        } catch (error) {
+            console.error("Error fetching messages:", error);
+        }
+    }, [messages.length, scrollToBottom]);
+
+    const fetchUserAndMessages = useCallback(async (userId) => {
+        try {
+            const userResponse = await axios.get(
+                `${import.meta.env.VITE_API_URL}/profile/${userId}`
+            );
+            setSelectedUser(userResponse.data);
+            await fetchMessages(userId);
+        } catch (error) {
+            console.error("Error fetching user:", error);
+        }
+    }, [fetchMessages]);
 
     useEffect(() => {
         if (!state.user) {
@@ -45,93 +127,20 @@ export default function MessagesPage() {
         }, 2000);
 
         return () => clearInterval(interval);
-    }, [state.user, navigate, selectedUser, searchParams]);
-
-    const checkTypingStatus = async (userId) => {
-        try {
-            const response = await axios.get(
-                `${import.meta.env.VITE_API_URL}/messages/typing/${userId}`
-            );
-            setOtherUserTyping(response.data.isTyping);
-        } catch (error) {
-            console.error("Error checking typing status:", error);
-        }
-    };
-
-    const sendTypingStatus = async () => {
-        if (!selectedUser) return;
-
-        try {
-            await axios.post(
-                `${import.meta.env.VITE_API_URL}/messages/typing`,
-                { receiverId: selectedUser.id }
-            );
-        } catch (error) {
-            console.error("Error sending typing status:", error);
-        }
-    };
-
-    const handleTyping = () => {
-        sendTypingStatus();
-
-        // Clear existing timeout
-        if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current);
-        }
-
-        // Set new timeout to send typing status again
-        typingTimeoutRef.current = setTimeout(() => {
-            sendTypingStatus();
-        }, 1000);
-    };
+    }, [
+        state.user,
+        navigate,
+        selectedUser,
+        searchParams,
+        fetchConversations,
+        fetchUserAndMessages,
+        fetchMessages,
+        checkTypingStatus
+    ]);
 
     useEffect(() => {
         scrollToBottom();
-    }, [messages]);
-
-    const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-
-    const fetchConversations = async () => {
-        try {
-            const response = await axios.get(
-                `${import.meta.env.VITE_API_URL}/messages/conversations`
-            );
-            setConversations(response.data);
-        } catch (error) {
-            console.error("Error fetching conversations:", error);
-        }
-    };
-
-    const fetchUserAndMessages = async (userId) => {
-        try {
-            const userResponse = await axios.get(
-                `${import.meta.env.VITE_API_URL}/profile/${userId}`
-            );
-            setSelectedUser(userResponse.data);
-            await fetchMessages(userId);
-        } catch (error) {
-            console.error("Error fetching user:", error);
-        }
-    };
-
-    const fetchMessages = async (userId, silent = false) => {
-        try {
-            const response = await axios.get(
-                `${import.meta.env.VITE_API_URL}/messages/${userId}`
-            );
-            const prevLength = messages.length;
-            setMessages(response.data);
-
-            // Auto scroll only if new message arrived
-            if (!silent && response.data.length > prevLength) {
-                setTimeout(scrollToBottom, 100);
-            }
-        } catch (error) {
-            console.error("Error fetching messages:", error);
-        }
-    };
+    }, [messages, scrollToBottom]);
 
     const handleSelectConversation = (user) => {
         setSelectedUser(user);

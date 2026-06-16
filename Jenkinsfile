@@ -28,7 +28,7 @@ pipeline {
     PRODUCTION_URL   = "https://blog.wannasingh.dev"
 
     // Node.js Setup
-    NODE_VERSION     = "18"
+    NODE_VERSION     = "22"
     
     // Shared Jenkins volume name on the host VM
     JENKINS_VOLUME   = "wannasingh-portfolios_jenkins_data"
@@ -101,10 +101,15 @@ pipeline {
       steps {
         echo "⚙️ Installing project dependencies..."
         sh """
-          echo "Installing Client dependencies..."
-          cd client && npm ci
-          echo "Installing Server dependencies..."
-          cd ../server && npm ci
+          docker run --rm \
+            -v \$(echo \${WORKSPACE} | sed "s|/var/jenkins_home/|/var/lib/docker/volumes/${JENKINS_VOLUME}/_data/|"):/app \
+            -w /app/client \
+            node:22-alpine npm ci
+            
+          docker run --rm \
+            -v \$(echo \${WORKSPACE} | sed "s|/var/jenkins_home/|/var/lib/docker/volumes/${JENKINS_VOLUME}/_data/|"):/app \
+            -w /app/server \
+            node:22-alpine npm ci
         """
       }
     }
@@ -116,8 +121,10 @@ pipeline {
           steps {
             echo "⚙️ Running Backend Linters & Tests..."
             sh """
-              cd server
-              npm run test || echo "⚠️ Backend tests completed (or none configured)."
+              docker run --rm \
+                -v \$(echo \${WORKSPACE} | sed "s|/var/jenkins_home/|/var/lib/docker/volumes/${JENKINS_VOLUME}/_data/|"):/app \
+                -w /app/server \
+                node:22-alpine npm run test || echo "⚠️ Backend tests completed (or none configured)."
             """
           }
         }
@@ -125,9 +132,15 @@ pipeline {
           steps {
             echo "⚙️ Running Frontend Linting & Build..."
             sh """
-              cd client
-              npm run lint || true
-              npm run build
+              docker run --rm \
+                -v \$(echo \${WORKSPACE} | sed "s|/var/jenkins_home/|/var/lib/docker/volumes/${JENKINS_VOLUME}/_data/|"):/app \
+                -w /app/client \
+                node:22-alpine npm run lint || true
+                
+              docker run --rm \
+                -v \$(echo \${WORKSPACE} | sed "s|/var/jenkins_home/|/var/lib/docker/volumes/${JENKINS_VOLUME}/_data/|"):/app \
+                -w /app/client \
+                node:22-alpine npm run build
             """
           }
         }
@@ -170,8 +183,15 @@ pipeline {
           steps {
             echo "🔍 Running Software Composition Analysis (SCA)..."
             sh """
-              cd client && npm audit --audit-level=high || true
-              cd ../server && npm audit --audit-level=high || true
+              docker run --rm \
+                -v \$(echo \${WORKSPACE} | sed "s|/var/jenkins_home/|/var/lib/docker/volumes/${JENKINS_VOLUME}/_data/|"):/app \
+                -w /app/client \
+                node:22-alpine npm audit --audit-level=high || true
+                
+              docker run --rm \
+                -v \$(echo \${WORKSPACE} | sed "s|/var/jenkins_home/|/var/lib/docker/volumes/${JENKINS_VOLUME}/_data/|"):/app \
+                -w /app/server \
+                node:22-alpine npm audit --audit-level=high || true
             """
           }
         }
@@ -265,23 +285,10 @@ pipeline {
         }
       }
       steps {
-        echo "🚀 Fetching secrets from Vault and deploying to Staging VM..."
+        echo "🚀 Preparing staging environment configuration..."
         sh """
-          SECRETS_JSON=\$(curl -s -H "X-Vault-Token: ${VAULT_TOKEN}" http://161.118.199.97:8200/v1/secret/data/wannasingh-blog || echo '{}')
-          node -e '
-            try {
-              const payload = JSON.parse(process.argv[1]);
-              const data = payload.data.data;
-              if (!data) throw new Error("No data in Vault response");
-              console.log("DB_USER=" + data.DB_USER);
-              console.log("DB_PASSWORD=" + data.DB_PASSWORD);
-              console.log("DB_CONNECTION_STRING=" + data.DB_CONNECTION_STRING);
-              console.log("JWT_SECRET=" + data.JWT_SECRET);
-            } catch (e) {
-              console.error("Error parsing Vault secrets:", e.message);
-              process.exit(1);
-            }
-          ' "\$SECRETS_JSON" > staging.env
+          echo "VAULT_TOKEN=${VAULT_TOKEN}" > staging.env
+          echo "VAULT_SECRET_PATH=secret/wannasingh-blog-staging" >> staging.env
         """
         withCredentials([sshUserPrivateKey(credentialsId: 'apps-ssh-key', keyFileVariable: 'APPS_KEY', usernameVariable: 'APPS_USER')]) {
           sh """
@@ -371,23 +378,10 @@ pipeline {
         }
       }
       steps {
-        echo "🚀 Fetching secrets from Vault and deploying to Production VM..."
+        echo "🚀 Preparing production environment configuration..."
         sh """
-          SECRETS_JSON=\$(curl -s -H "X-Vault-Token: ${VAULT_TOKEN}" http://161.118.199.97:8200/v1/secret/data/wannasingh-blog || echo '{}')
-          node -e '
-            try {
-              const payload = JSON.parse(process.argv[1]);
-              const data = payload.data.data;
-              if (!data) throw new Error("No data in Vault response");
-              console.log("DB_USER=" + data.DB_USER);
-              console.log("DB_PASSWORD=" + data.DB_PASSWORD);
-              console.log("DB_CONNECTION_STRING=" + data.DB_CONNECTION_STRING);
-              console.log("JWT_SECRET=" + data.JWT_SECRET);
-            } catch (e) {
-              console.error("Error parsing Vault secrets:", e.message);
-              process.exit(1);
-            }
-          ' "\$SECRETS_JSON" > production.env
+          echo "VAULT_TOKEN=${VAULT_TOKEN}" > production.env
+          echo "VAULT_SECRET_PATH=secret/wannasingh-blog" >> production.env
         """
         withCredentials([sshUserPrivateKey(credentialsId: 'apps-ssh-key', keyFileVariable: 'APPS_KEY', usernameVariable: 'APPS_USER')]) {
           sh """
