@@ -1,0 +1,26 @@
+# Dockerfile for Node.js Express server using node-oracledb in Thin mode
+
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install HashiCorp Vault CLI in the container for secrets injection
+RUN apk add --no-cache vault bash
+
+# Copy package descriptors and install production dependencies
+COPY server/package*.json ./
+RUN npm ci --only=production
+
+# Copy backend source code
+COPY server/ ./
+
+# Expose backend port
+EXPOSE 4001
+
+# Copy Vault initialization script and make it executable
+COPY migration/vault/vault-env.sh /app/vault-env.sh
+RUN chmod +x /app/vault-env.sh
+
+# The entrypoint launches Vault injection first, then executes node app.mjs
+ENTRYPOINT ["/bin/bash", "/app/vault-env.sh"]
+CMD ["node", "app.mjs"]
