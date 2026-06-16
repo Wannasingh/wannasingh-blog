@@ -77,7 +77,7 @@ notificationRouter.put("/:notificationId/read", protectAdmin, async (req, res) =
       SET is_read = 'Y'
       WHERE id = :notificationId
     `;
-    await db.execute(updateSql, { notificationId: parseInt(notificationId) });
+    await db.execute(updateSql, { notificationId: Number.parseInt(notificationId) });
 
     return res.status(200).json({ message: "Notification marked as read" });
   } catch (err) {

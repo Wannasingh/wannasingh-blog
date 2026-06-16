@@ -2,8 +2,8 @@ import { Router } from "express";
 import db from "./db_oracle.mjs";
 import protectUser from "../../server/src/middleware/protectUser.mjs";
 import multer from "multer";
-import fs from "fs/promises";
-import path from "path";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 const profileRouter = Router();
 const multerUpload = multer({ storage: multer.memoryStorage() });
