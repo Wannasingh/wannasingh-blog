@@ -267,7 +267,7 @@ pipeline {
       steps {
         echo "🚀 Fetching secrets from Vault and deploying to Staging VM..."
         sh """
-          SECRETS_JSON=\$(curl -s -H "X-Vault-Token: ${VAULT_TOKEN}" http://161.118.199.97:8200/v1/secret/data/wannasingh-blog || echo '{}')
+          SECRETS_JSON=\$(curl -s -H "X-Vault-Token: ${VAULT_TOKEN}" https://vault.wannasingh.dev/v1/secret/data/wannasingh-blog-staging || echo '{}')
           node -e '
             try {
               const payload = JSON.parse(process.argv[1]);
@@ -373,7 +373,7 @@ pipeline {
       steps {
         echo "🚀 Fetching secrets from Vault and deploying to Production VM..."
         sh """
-          SECRETS_JSON=\$(curl -s -H "X-Vault-Token: ${VAULT_TOKEN}" http://161.118.199.97:8200/v1/secret/data/wannasingh-blog || echo '{}')
+          SECRETS_JSON=\$(curl -s -H "X-Vault-Token: ${VAULT_TOKEN}" https://vault.wannasingh.dev/v1/secret/data/wannasingh-blog || echo '{}')
           node -e '
             try {
               const payload = JSON.parse(process.argv[1]);
