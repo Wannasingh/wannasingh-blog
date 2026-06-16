@@ -4,12 +4,14 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install Bash, wget, unzip and download official HashiCorp Vault CLI binary
+# Install Bash, wget, unzip and download official HashiCorp Vault CLI binary matching CPU architecture
 RUN apk add --no-cache bash wget unzip ca-certificates && \
-    wget https://releases.hashicorp.com/vault/1.15.4/vault_1.15.4_linux_amd64.zip && \
-    unzip vault_1.15.4_linux_amd64.zip && \
+    ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then VAULT_ARCH="amd64"; else VAULT_ARCH="arm64"; fi && \
+    wget https://releases.hashicorp.com/vault/1.15.4/vault_1.15.4_linux_${VAULT_ARCH}.zip && \
+    unzip vault_1.15.4_linux_${VAULT_ARCH}.zip && \
     mv vault /usr/local/bin/ && \
-    rm vault_1.15.4_linux_amd64.zip
+    rm vault_1.15.4_linux_${VAULT_ARCH}.zip
 
 # Copy package descriptors and install production dependencies
 COPY server/package*.json ./
