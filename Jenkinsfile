@@ -367,9 +367,9 @@ pipeline {
         echo "🔬 Running Production Smoke Tests..."
         sh """
           sleep 10
-          STATUS_CODE=\$(curl -s -k -o /dev/null -w "%{http_code}" http://localhost:8081 || echo "000")
+          STATUS_CODE=\$(curl -s -k -o /dev/null -w "%{http_code}" http://\${TARGET_IP}:8081 || echo "000")
           if [ "\$STATUS_CODE" -eq 200 ] || [ "\$STATUS_CODE" -eq 301 ] || [ "\$STATUS_CODE" -eq 302 ]; then
-            echo "✅ Smoke test passed! Local container port 8081 is healthy."
+            echo "✅ Smoke test passed! Production VM port 8081 is healthy."
           else
             echo "❌ Smoke test failed! Status: \$STATUS_CODE"
             exit 1
