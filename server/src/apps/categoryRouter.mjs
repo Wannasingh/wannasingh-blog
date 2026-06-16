@@ -21,7 +21,7 @@ categoryRouter.get("/", async (req, res) => {
 categoryRouter.get("/:categoryId", async (req, res) => {
   const { categoryId } = req.params;
   try {
-    const result = await db.execute("SELECT id, name FROM categories WHERE id = :id", { id: parseInt(categoryId) });
+    const result = await db.execute("SELECT id, name FROM categories WHERE id = :id", { id: Number.parseInt(categoryId) });
     if (result.rows.length === 0) {
       return res.status(404).json({ error: "Category not found" });
     }
@@ -51,7 +51,7 @@ categoryRouter.put("/:id", protectAdmin, async (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
   try {
-    const result = await db.execute("UPDATE categories SET name = :name WHERE id = :id", { name, id: parseInt(id) });
+    const result = await db.execute("UPDATE categories SET name = :name WHERE id = :id", { name, id: Number.parseInt(id) });
     if (result.rowsAffected === 0) {
       return res.status(404).json({ error: "Category not found" });
     }
@@ -65,7 +65,7 @@ categoryRouter.put("/:id", protectAdmin, async (req, res) => {
 categoryRouter.delete("/:categoryId", protectAdmin, async (req, res) => {
   const { categoryId } = req.params;
   try {
-    const result = await db.execute("DELETE FROM categories WHERE id = :id", { id: parseInt(categoryId) });
+    const result = await db.execute("DELETE FROM categories WHERE id = :id", { id: Number.parseInt(categoryId) });
     if (result.rowsAffected === 0) {
       return res.status(404).json({ error: "Category not found" });
     }

@@ -3,8 +3,8 @@ import db from "./db_oracle.mjs";
 import protectAdmin from "../../server/src/middleware/protectAdmin.mjs";
 import protectUser from "../../server/src/middleware/protectUser.mjs";
 import multer from "multer";
-import fs from "fs/promises";
-import path from "path";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 const postRouter = Router();
 
