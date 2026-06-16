@@ -73,6 +73,36 @@ if [ -n "$VAULT_ADDR" ]; then
       }
     ' "$SECRETS_JSON")
 
+    export SUPABASE_URL=$(node -e '
+      try {
+        const payload = JSON.parse(process.argv[1]);
+        const data = payload.data.data || payload.data;
+        console.log(data.SUPABASE_URL || "");
+      } catch (e) {
+        process.exit(1);
+      }
+    ' "$SECRETS_JSON")
+
+    export SUPABASE_ANON_KEY=$(node -e '
+      try {
+        const payload = JSON.parse(process.argv[1]);
+        const data = payload.data.data || payload.data;
+        console.log(data.SUPABASE_ANON_KEY || "");
+      } catch (e) {
+        process.exit(1);
+      }
+    ' "$SECRETS_JSON")
+
+    export SUPABASE_SERVICE_ROLE_KEY=$(node -e '
+      try {
+        const payload = JSON.parse(process.argv[1]);
+        const data = payload.data.data || payload.data;
+        console.log(data.SUPABASE_SERVICE_ROLE_KEY || "");
+      } catch (e) {
+        process.exit(1);
+      }
+    ' "$SECRETS_JSON")
+
     echo "[Vault] Secrets successfully retrieved and injected into current environment."
   else
     echo "[Vault] Warning: VAULT_TOKEN is empty. Skipping injection."
