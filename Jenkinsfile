@@ -265,23 +265,10 @@ pipeline {
         }
       }
       steps {
-        echo "🚀 Fetching secrets from Vault and deploying to Staging VM..."
+        echo "🚀 Preparing staging environment configuration..."
         sh """
-          SECRETS_JSON=\$(curl -s -H "X-Vault-Token: ${VAULT_TOKEN}" http://161.118.199.97:8200/v1/secret/data/wannasingh-blog || echo '{}')
-          node -e '
-            try {
-              const payload = JSON.parse(process.argv[1]);
-              const data = payload.data.data;
-              if (!data) throw new Error("No data in Vault response");
-              console.log("DB_USER=" + data.DB_USER);
-              console.log("DB_PASSWORD=" + data.DB_PASSWORD);
-              console.log("DB_CONNECTION_STRING=" + data.DB_CONNECTION_STRING);
-              console.log("JWT_SECRET=" + data.JWT_SECRET);
-            } catch (e) {
-              console.error("Error parsing Vault secrets:", e.message);
-              process.exit(1);
-            }
-          ' "\$SECRETS_JSON" > staging.env
+          echo "VAULT_TOKEN=${VAULT_TOKEN}" > staging.env
+          echo "VAULT_SECRET_PATH=secret/wannasingh-blog-staging" >> staging.env
         """
         withCredentials([sshUserPrivateKey(credentialsId: 'apps-ssh-key', keyFileVariable: 'APPS_KEY', usernameVariable: 'APPS_USER')]) {
           sh """
@@ -371,23 +358,10 @@ pipeline {
         }
       }
       steps {
-        echo "🚀 Fetching secrets from Vault and deploying to Production VM..."
+        echo "🚀 Preparing production environment configuration..."
         sh """
-          SECRETS_JSON=\$(curl -s -H "X-Vault-Token: ${VAULT_TOKEN}" http://161.118.199.97:8200/v1/secret/data/wannasingh-blog || echo '{}')
-          node -e '
-            try {
-              const payload = JSON.parse(process.argv[1]);
-              const data = payload.data.data;
-              if (!data) throw new Error("No data in Vault response");
-              console.log("DB_USER=" + data.DB_USER);
-              console.log("DB_PASSWORD=" + data.DB_PASSWORD);
-              console.log("DB_CONNECTION_STRING=" + data.DB_CONNECTION_STRING);
-              console.log("JWT_SECRET=" + data.JWT_SECRET);
-            } catch (e) {
-              console.error("Error parsing Vault secrets:", e.message);
-              process.exit(1);
-            }
-          ' "\$SECRETS_JSON" > production.env
+          echo "VAULT_TOKEN=${VAULT_TOKEN}" > production.env
+          echo "VAULT_SECRET_PATH=secret/wannasingh-blog" >> production.env
         """
         withCredentials([sshUserPrivateKey(credentialsId: 'apps-ssh-key', keyFileVariable: 'APPS_KEY', usernameVariable: 'APPS_USER')]) {
           sh """
