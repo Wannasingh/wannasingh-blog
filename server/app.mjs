@@ -25,8 +25,8 @@ app.use("/profile", profileRouter);
 app.use("/notifications", notificationRouter);
 app.use("/messages", messageRouter);
 
-// For local development
-if (process.env.NODE_ENV !== 'production') {
+// For local development and standalone VM deployment
+if (!process.env.VERCEL) {
   app.listen(port, () => {
     console.log(`Server is running at ${port}`);
   });
