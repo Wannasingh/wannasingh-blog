@@ -279,7 +279,9 @@ pipeline {
           """
         }
         echo "✅ Deployment to Staging completed! Staging App URL: ${STAGING_URL}"
-        currentBuild.description = "Staging: <a href='${STAGING_URL}' target='_blank'>${STAGING_URL}</a>"
+        script {
+          currentBuild.description = "Staging: <a href='${STAGING_URL}' target='_blank'>${STAGING_URL}</a>"
+        }
       }
     }
 
@@ -376,7 +378,9 @@ pipeline {
             exit 1
           fi
         """
-        currentBuild.description = "Production: <a href='${PRODUCTION_URL}' target='_blank'>${PRODUCTION_URL}</a>"
+        script {
+          currentBuild.description = "Production: <a href='${PRODUCTION_URL}' target='_blank'>${PRODUCTION_URL}</a>"
+        }
       }
     }
 
